@@ -2,7 +2,7 @@
 database.py
 ===========
 SQLAlchemy engine, session, and base setup.
-All other files import get_db and Base from here.
+Configured for Supabase PostgreSQL.
 """
 
 import os
@@ -14,38 +14,15 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# -----------------------------
-# Engine
-# -----------------------------
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-    future=True
-)
-
-# -----------------------------
-# Session
-# -----------------------------
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False
-)
-
-# -----------------------------
-# Base Model
-# -----------------------------
+# Supabase uses PostgreSQL — no special options needed beyond pool_pre_ping
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
-# -----------------------------
-# Dependency (FastAPI)
-# -----------------------------
 def get_db():
     """
-    Dependency injected into endpoints
+    Dependency injected into every endpoint that needs DB access.
     Usage: db: Session = Depends(get_db)
     """
     db = SessionLocal()
@@ -55,12 +32,10 @@ def get_db():
         db.close()
 
 
-# -----------------------------
-# Create Tables (DEV ONLY ⚠️)
-# -----------------------------
 def create_tables():
     """
-    Creates tables (ONLY for development).
-    ⚠️ DO NOT use in production with Supabase.
+    Creates any tables defined in models.py that don't exist yet.
+    Called once on app startup from main.py.
+    For Supabase, most tables already exist — this is a safety net.
     """
     Base.metadata.create_all(bind=engine)
