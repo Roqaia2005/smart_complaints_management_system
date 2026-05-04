@@ -12,16 +12,40 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:root@localhost:3306/complaints_db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine)
+# -----------------------------
+# Engine
+# -----------------------------
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    future=True
+)
+
+# -----------------------------
+# Session
+# -----------------------------
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False
+)
+
+# -----------------------------
+# Base Model
+# -----------------------------
 Base = declarative_base()
 
 
+# -----------------------------
+# Dependency (FastAPI)
+# -----------------------------
 def get_db():
     """
-    Dependency injected into every endpoint that needs DB access.
+    Dependency injected into endpoints
     Usage: db: Session = Depends(get_db)
     """
     db = SessionLocal()
@@ -31,9 +55,12 @@ def get_db():
         db.close()
 
 
+# -----------------------------
+# Create Tables (DEV ONLY ⚠️)
+# -----------------------------
 def create_tables():
     """
-    Creates all tables that don't exist yet.
-    Called once on app startup from main.py.
+    Creates tables (ONLY for development).
+    ⚠️ DO NOT use in production with Supabase.
     """
     Base.metadata.create_all(bind=engine)

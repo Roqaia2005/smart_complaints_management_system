@@ -1,140 +1,221 @@
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 from embedding import generate_embedding, add_to_index, search_similar
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 
 load_dotenv()
-SIMILARITY_THRESHOLD=0.85
+
+SIMILARITY_THRESHOLD = 0.85
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(
-    f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    DATABASE_URL,
+    pool_pre_ping=True,
+    future=True
 )
 
+# -----------------------------
+# Categories
+# -----------------------------
 def get_categories(faculty_id: int):
-
     with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT c.id, c.name, c.description,
-                   GROUP_CONCAT(ck.keyword SEPARATOR ', ') as keywords
-            FROM Categories c
-            LEFT JOIN CategoryKeywords ck ON ck.category_id = c.id
-            WHERE c.faculty_id = :fid AND c.is_active = 1 AND c.deleted_at IS NULL
+                   STRING_AGG(ck.keyword, ', ') AS keywords
+            FROM categories c
+            LEFT JOIN categorykeywords ck ON ck.category_id = c.id
+            WHERE c.faculty_id = :fid
+              AND c.is_active = TRUE
+              AND c.deleted_at IS NULL
             GROUP BY c.id, c.name, c.description
         """), {"fid": faculty_id})
 
-        categories = []
-        for row in result.mappings():
-            categories.append({
+        return [
+            {
                 "id": row["id"],
                 "name": row["name"],
                 "description": row["description"],
-                "keywords": row["keywords"] if row["keywords"] else ""
-            })
-        return categories
+                "keywords": row["keywords"] or ""
+            }
+            for row in result.mappings()
+        ]
 
 
-    
+# -----------------------------
+# Priority Rules
+# -----------------------------
 def get_priority_rules():
     with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT priority_level, description, examples
-            FROM PriorityRules
+            FROM priorityrules
             ORDER BY priority_level DESC
         """))
-        rules = []
-        for row in result.mappings():
-            rules.append({
+
+        return [
+            {
                 "level": row["priority_level"],
                 "description": row["description"],
                 "examples": row["examples"]
-            })
-        return rules
-    
-    
+            }
+            for row in result.mappings()
+        ]
 
 
-
-
+# -----------------------------
+# Embeddings Loader (FAISS)
+# -----------------------------
 def load_embeddings_from_db():
-    # Called once at startup — loads all embeddings into FAISS
     with engine.connect() as conn:
         result = conn.execute(text("""
-            SELECT id, embedding FROM Complaints
-            WHERE embedding IS NOT NULL AND deleted_at IS NULL
+            SELECT id, embedding
+            FROM complaints
+            WHERE embedding IS NOT NULL
+              AND deleted_at IS NULL
         """))
+
         complaints = []
         for row in result.mappings():
             try:
-                embedding = json.loads(row["embedding"])
-                complaints.append({"id": row["id"], "embedding": embedding})
-            except:
-                pass
-        return complaints
-    
+                complaints.append({
+                    "id": row["id"],
+                    "embedding": json.loads(row["embedding"])
+                })
+            except Exception:
+                continue
 
+        return complaints
+
+
+# -----------------------------
+# Candidate Filtering
+# -----------------------------
 def get_candidate_ids(user_id: int, category_id: int, status_filter: list):
-    # Step 1 of hybrid search — get complaint ids filtered by user+category from MySQL
-    placeholders = ",".join([f"'{s}'" for s in status_filter])
     with engine.connect() as conn:
-        result = conn.execute(text(f"""
-            SELECT id FROM Complaints
+        result = conn.execute(text("""
+            SELECT id
+            FROM complaints
             WHERE user_id = :user_id
-            AND category_id = :category_id
-            AND status IN ({placeholders})
-            AND deleted_at IS NULL
-        """), {"user_id": user_id, "category_id": category_id})
+              AND category_id = :category_id
+              AND status = ANY(:statuses)
+              AND deleted_at IS NULL
+        """), {
+            "user_id": user_id,
+            "category_id": category_id,
+            "statuses": status_filter
+        })
+
         return [row["id"] for row in result.mappings()]
-    
+
+
+# -----------------------------
+# Get Complaint
+# -----------------------------
 def get_complaint_by_id(complaint_id: int):
     with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT id, status, ai_summary, resolution_text, resolved_at
-            FROM Complaints WHERE id = :id
+            FROM complaints
+            WHERE id = :id
         """), {"id": complaint_id})
+
         row = result.mappings().fetchone()
         return dict(row) if row else None
-    
+
+
+# -----------------------------
+# Duplicate Detection
+# -----------------------------
 def check_duplicate(user_id: int, category_id: int, problem: str):
-    # Hybrid: MySQL filters by user+category+status, FAISS finds semantically similar
-    
-    candidate_ids = get_candidate_ids(user_id, category_id, ["pending", "in_progress"])
-    print("CANDIDATES:", candidate_ids)
+    candidate_ids = get_candidate_ids(
+        user_id,
+        category_id,
+        ["pending", "in_progress"]
+    )
+
     if not candidate_ids:
         return None
+
     embedding = generate_embedding(problem)
     results = search_similar(embedding, candidate_ids)
+
     for cid, score in results:
-        existing = get_complaint_by_id(cid)
-
         if score >= SIMILARITY_THRESHOLD:
-            print(f"DUPLICATE FOUND: #{cid} score={score}")
-            return existing
+            return get_complaint_by_id(cid)
+
     return None
 
 
+# -----------------------------
+# Resolved Matching
+# -----------------------------
 def check_resolved(user_id: int, category_id: int, problem: str):
-    # Same hybrid approach but for resolved complaints
-    candidate_ids = get_candidate_ids(user_id, category_id, ["resolved"])
+    candidate_ids = get_candidate_ids(
+        user_id,
+        category_id,
+        ["resolved"]
+    )
+
     if not candidate_ids:
         return None
+
     embedding = generate_embedding(problem)
     results = search_similar(embedding, candidate_ids)
+
     if results:
-        complaint_id, score = results[0]
-        print(f"RESOLVED MATCH: complaint #{complaint_id} similarity={score:.3f}")
-        return get_complaint_by_id(complaint_id)
+        cid, score = results[0]
+        return get_complaint_by_id(cid)
+
     return None
 
 
-def save_complaint(user_id: int, category_id: int, problem: str, location: str, since: str, ai_summary: str, priority: int):
+# -----------------------------
+# Insert Complaint
+# -----------------------------
+def save_complaint(
+    user_id: int,
+    category_id: int,
+    problem: str,
+    location: str,
+    since: str,
+    ai_summary: str,
+    priority: int
+):
     embedding = generate_embedding(problem or "")
     embedding_json = json.dumps(embedding.tolist())
-    with engine.connect() as conn:
+
+    with engine.begin() as conn:  # auto commit
         result = conn.execute(text("""
-            INSERT INTO Complaints (user_id, category_id, problem, location, since, ai_summary, priority, status, embedding, createdAt, updatedAt)
-            VALUES (:user_id, :category_id, :problem, :location, :since, :ai_summary, :priority, 'pending', :embedding, :now, :now)
+            INSERT INTO complaints (
+                user_id,
+                category_id,
+                problem,
+                location,
+                since,
+                ai_summary,
+                priority,
+                status,
+                embedding,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                :user_id,
+                :category_id,
+                :problem,
+                :location,
+                :since,
+                :ai_summary,
+                :priority,
+                'pending',
+                :embedding,
+                :now,
+                :now
+            )
+            RETURNING id
         """), {
             "user_id": user_id,
             "category_id": category_id,
@@ -144,34 +225,46 @@ def save_complaint(user_id: int, category_id: int, problem: str, location: str, 
             "ai_summary": ai_summary,
             "priority": priority,
             "embedding": embedding_json,
-            "now": datetime.now()
+            "now": datetime.now(timezone.utc)
         })
-        conn.commit()
-        new_id = result.lastrowid
-        # Add to FAISS live so next request sees it immediately
-        add_to_index(new_id, embedding)
-        return new_id
 
+        new_id = result.scalar()
+
+    # Update FAISS after commit
+    add_to_index(new_id, embedding)
+
+    return new_id
+
+
+# -----------------------------
+# Complaint History
+# -----------------------------
 def add_complaint_history(complaint_id: int, status: str, changed_by: int):
-    from datetime import datetime
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
-            INSERT INTO ComplaintHistories (complaint_id, status, changed_by, changed_at)
+            INSERT INTO complainthistories (
+                complaint_id,
+                status,
+                changed_by,
+                changed_at
+            )
             VALUES (:cid, :status, :by, :time)
         """), {
             "cid": complaint_id,
             "status": status,
             "by": changed_by,
-            "time": datetime.now()
+            "time": datetime.now(timezone.utc)
         })
-        conn.commit()
 
 
+# -----------------------------
+# Officers
+# -----------------------------
 def get_officers_by_category(category_id: int):
     with engine.connect() as conn:
         result = conn.execute(text("""
             SELECT u.id, u.full_name, u.email
-            FROM CategoryOfficers co
+            FROM categoryofficers co
             JOIN users u ON u.id = co.officer_id
             WHERE co.category_id = :cid
         """), {"cid": category_id})
