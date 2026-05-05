@@ -37,8 +37,10 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'User',
-    timestamps: true,   // ✅ رجعيها true عشان السيكولايز يبعت الوقت
-    underscored: false  // ✅ خليها false عشان يبعتها بالصيغة اللي الداتا بيز عوزاها (createdAt)
+    tableName: 'users',       
+    freezeTableName: true,     
+    timestamps: true,          
+    underscored: true          
   });
   return User;
 };

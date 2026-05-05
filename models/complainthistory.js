@@ -12,8 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
      
     ComplaintHistory.belongsTo(models.Complaint, { foreignKey: "complaint_id" });
-    ComplaintHistory.belongsTo(models.User, { foreignKey: "changed_by" });
-    }
+    ComplaintHistory.belongsTo(models.User, { foreignKey: 'changed_by' });    }
   }
   ComplaintHistory.init({
     complaint_id: DataTypes.INTEGER,
@@ -23,8 +22,8 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'ComplaintHistory',
-    timestamps: true,   // ✅ خليها true هنا كمان
-    underscored: false
+    timestamps: false,   
+    underscored: true
   });
   return ComplaintHistory;
 };
