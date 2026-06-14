@@ -21,9 +21,11 @@ module.exports = (sequelize, DataTypes) => {
     changed_at: DataTypes.DATE
   }, {
     sequelize,
-    modelName: 'ComplaintHistory',
-    timestamps: false,   
-    underscored: true
+  modelName: 'ComplaintHistory',
+  tableName: 'complaint_histories',
+  freezeTableName: true,
+  timestamps: false,
+  underscored: false
   });
   return ComplaintHistory;
 };

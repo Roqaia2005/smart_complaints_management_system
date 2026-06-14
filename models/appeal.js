@@ -25,7 +25,11 @@ module.exports = (sequelize, DataTypes) => {
     responded_by: DataTypes.INTEGER
   }, {
     sequelize,
-    modelName: 'Appeal',
+  modelName: 'Appeal',
+  tableName: 'Appeals',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
   });
   return Appeal;
 };

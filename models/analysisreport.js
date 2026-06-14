@@ -18,8 +18,15 @@ module.exports = (sequelize, DataTypes) => {
     top_issues: DataTypes.JSON,
     generated_at: DataTypes.DATE
   }, {
-    sequelize,
-    modelName: 'AnalysisReport',
-  });
+  sequelize,
+  modelName: 'AnalysisReport',
+  tableName: 'AnalysisReports',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false,
+  createdAt: false,        // ← الجدول مفيش فيه createdAt
+  updatedAt: 'updatedAt'
+}
+);
   return AnalysisReport;
 };

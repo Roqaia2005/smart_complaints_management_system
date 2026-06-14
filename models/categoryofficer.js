@@ -18,8 +18,11 @@ module.exports = (sequelize, DataTypes) => {
     officer_id: DataTypes.INTEGER,
     assigned_at: DataTypes.DATE
   }, {
-    sequelize,
-    modelName: 'CategoryOfficer',
+     sequelize,
+  modelName: 'CategoryOfficer',
+  tableName: 'CategoryOfficers',
+  freezeTableName: true,
+  timestamps: false
   });
   return CategoryOfficer;
 };

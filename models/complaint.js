@@ -19,23 +19,27 @@ module.exports = (sequelize, DataTypes) => {
 
     }
   }
-  Complaint.init({
-    user_id: DataTypes.INTEGER,
-    category_id: DataTypes.INTEGER,
-    problem: DataTypes.TEXT,
-    location: DataTypes.STRING,
-    since: DataTypes.DATE,
-    ai_summary: DataTypes.TEXT,
-    priority: DataTypes.INTEGER,
-    status: DataTypes.STRING,
-    resolution_text: DataTypes.TEXT,
-    resolved_at: DataTypes.DATE,
-    sla_deadline: DataTypes.DATE
-  }, {
-    sequelize,
-    modelName: 'Complaint',
-    timestamps: true,   // ✅ لازم تكون true عشان يبعت التاريخ
-    underscored: false  // ✅ عشان يبعتها بـ اسم createdAt مش created_at
-  });
+Complaint.init({
+  user_id: DataTypes.INTEGER,
+  category_id: DataTypes.INTEGER,
+  problem: DataTypes.TEXT,
+  location: DataTypes.STRING,
+  since: DataTypes.DATE,
+  ai_summary: DataTypes.TEXT,
+  priority: DataTypes.INTEGER,
+  status: DataTypes.STRING,
+  resolution_text: DataTypes.TEXT,
+  resolved_at: DataTypes.DATE,
+  sla_deadline: DataTypes.DATE
+}, {
+  sequelize,
+  modelName: 'Complaint',
+  tableName: 'Complaints',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false,      // ← false عشان الأعمدة camelCase في الداتابيز
+  createdAt: 'createdAt',  // ← بتقوله صريح استخدم الاسم ده
+  updatedAt: 'updatedAt',  // ← وده
+});
   return Complaint;
 };

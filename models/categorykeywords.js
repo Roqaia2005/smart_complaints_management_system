@@ -17,8 +17,11 @@ module.exports = (sequelize, DataTypes) => {
     category_id: DataTypes.INTEGER,
     keyword: DataTypes.STRING
   }, {
-    sequelize,
-    modelName: 'CategoryKeywords',
+     sequelize,
+  modelName: 'CategoryKeywords',
+  tableName: 'CategoryKeywords',
+  freezeTableName: true,
+  timestamps: false
   });
   return CategoryKeywords;
 };

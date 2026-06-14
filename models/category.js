@@ -35,10 +35,13 @@ module.exports = (sequelize, DataTypes) => {
     sla_hours: DataTypes.INTEGER,
     is_active: DataTypes.BOOLEAN
   }, {
-    sequelize,
-    modelName: 'Category',
-    timestamps: true,   // ✅ رجعيها true عشان السيكولايز يبعت الوقت
-    underscored: false  // ✅ خليها false عشان يبعتها بالصيغة اللي الداتا بيز عوزاها (createdAt)
-  });
+  sequelize,
+  modelName: 'Category',
+  tableName: 'categories',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false,
+  paranoid: false
+});
   return Category;
 };

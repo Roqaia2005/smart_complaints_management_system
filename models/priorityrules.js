@@ -22,10 +22,13 @@ module.exports = (sequelize, DataTypes) => {
     created_by: DataTypes.INTEGER,
     //updated_at: DataTypes.DATE
   }, {
-    sequelize,
-    modelName: 'PriorityRules',
-    tableName: 'PriorityRules',
-    timestamps: false
+   sequelize,
+  modelName: 'PriorityRules',
+  tableName: 'PriorityRules',
+  freezeTableName: true,
+  timestamps: true,
+  createdAt: false,        // ← مفيش createdAt في الجدول
+  updatedAt: 'updatedAt',
   });
   return PriorityRules;
 };

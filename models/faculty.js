@@ -19,11 +19,13 @@ module.exports = (sequelize, DataTypes) => {
       unique: true
     }
   }, {
-    sequelize,
-    modelName: 'Faculty',
-    timestamps: true,   // ✅ رجعيها true عشان السيكولايز يبعت الوقت
-    underscored: false  // ✅ خليها false عشان يبعتها بالصيغة اللي الداتا بيز عوزاها (createdAt)
-  });
+  sequelize,
+  modelName: 'Faculty',
+  tableName: 'faculties',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
+});
 
   return Faculty;
 };

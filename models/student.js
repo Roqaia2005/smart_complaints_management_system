@@ -22,9 +22,13 @@ module.exports = (sequelize, DataTypes) => {
     department: DataTypes.STRING,
     academic_year: DataTypes.INTEGER,
     faculty_id: DataTypes.INTEGER
-  }, {
-    sequelize,
-    modelName: 'Student',
-  });
+  },{
+  sequelize,
+  modelName: 'Student',
+  tableName: 'Students',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
+});
   return Student;
 };

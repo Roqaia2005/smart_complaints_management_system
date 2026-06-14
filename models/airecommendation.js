@@ -17,10 +17,23 @@ module.exports = (sequelize, DataTypes) => {
     category_id: DataTypes.INTEGER,
     pattern_detected: DataTypes.TEXT,
     recommendation: DataTypes.TEXT,
-    status: DataTypes.STRING
+    status: DataTypes.STRING,
+     root_cause: DataTypes.TEXT,
+  urgency: DataTypes.STRING,
+  estimated_impact: DataTypes.STRING,
+  location: DataTypes.STRING,
+  complaint_count: DataTypes.INTEGER,
+  avg_resolution_h: DataTypes.INTEGER,
+  appeal_rate_pct: DataTypes.INTEGER,
+  top_keywords: DataTypes.TEXT,
+  generated_at: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'AiRecommendation',
+     tableName: 'AiRecommendations',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
   });
   return AiRecommendation;
 };

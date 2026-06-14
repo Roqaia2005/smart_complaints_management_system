@@ -1,26 +1,47 @@
 const express = require('express');
-const app = express();
-require('dotenv').config(); // مهم جداً لقراءة ملف الـ .env
-const db = require('../models'); // 3. استدعاء الموديلز والـ Sequelize
+const dotenv = require('dotenv');
 
-// استدعاء ملف الـ Routes
-const studentRoutes = require('./Student/routes/route'); 
+const db = require('../models');
+
+
+const studentRoutes = require('./Student/routes/route');
+const managerRoutes = require('./Manager/routes/manager.routes');
+const officerRoutes = require('./Officer/routes/officer.routes');
+
+const app = express();
+
+// قراءة ملف .env
+dotenv.config();
 
 // Middlewares
 app.use(express.json());
 
-// تفعيل الـ Routes
+// Routes
 app.use('/api/complaints', studentRoutes);
+app.use('/api/manager', managerRoutes);
+app.use('/api/officer', officerRoutes);
 
-// تشغيل السيرفر والتأكد من الداتا بيز
+// Port
 const PORT = process.env.PORT || 3000;
 
-// الميزة هنا إنه مش هيقوم السيرفر إلا لو الداتا بيز ربطت صح
-db.sequelize.sync().then(() => {
-    console.log("✅ Database Connected & Synced");
-    app.listen(PORT, () => {
-        console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// تشغيل السيرفر بعد التأكد من اتصال الداتا بيز
+db.sequelize.authenticate()
+    .then(() => {
+
+        console.log('✅ Database Connected');
+
+        app.listen(PORT, () => {
+            console.log(
+                `🚀 Server is running on http://localhost:${PORT}`
+            );
+        });
+
+    })
+    .catch((err) => {
+
+        console.error(
+            '❌ Unable to connect to the database:',
+            err.message
+        );
+
     });
-}).catch((err) => {
-    console.error("❌ Unable to connect to the database:", err.message);
-});

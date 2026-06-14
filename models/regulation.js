@@ -21,8 +21,12 @@ module.exports = (sequelize, DataTypes) => {
     embedding_id: DataTypes.STRING,
     added_by: DataTypes.INTEGER
   }, {
-    sequelize,
-    modelName: 'Regulation',
+     sequelize,
+  modelName: 'Regulation',
+  tableName: 'Regulations',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
   });
   return Regulation;
 };

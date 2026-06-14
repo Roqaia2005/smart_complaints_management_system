@@ -22,7 +22,10 @@ module.exports = (sequelize, DataTypes) => {
     new_value: DataTypes.JSON
   }, {
     sequelize,
-    modelName: 'AuditLog',
-  });
-  return AuditLog;
-};
+  modelName: 'AuditLog',
+  tableName: 'AuditLogs',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
+});
+return AuditLog; };

@@ -19,8 +19,12 @@ module.exports = (sequelize, DataTypes) => {
     expires_at: DataTypes.DATE,
     is_used: DataTypes.BOOLEAN
   }, {
-    sequelize,
-    modelName: 'OtpToken',
+  sequelize,
+  modelName: 'OtpToken',
+  tableName: 'OtpTokens',
+  freezeTableName: true,
+  timestamps: true,
+  underscored: false
   });
   return OtpToken;
 };
