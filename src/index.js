@@ -7,6 +7,7 @@ const db = require('../models');
 const studentRoutes = require('./Student/routes/route');
 const managerRoutes = require('./Manager/routes/manager.routes');
 const officerRoutes = require('./Officer/routes/officer.routes');
+const adminRoutes = require('./Admin/routes/adminRoutes');
 
 const app = express();
 
@@ -20,7 +21,7 @@ app.use(express.json());
 app.use('/api/complaints', studentRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/officer', officerRoutes);
-
+app.use('/api/admin', adminRoutes);
 // Port
 const PORT = process.env.PORT || 3000;
 
