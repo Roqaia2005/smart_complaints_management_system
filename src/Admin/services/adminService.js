@@ -1,4 +1,4 @@
-const { Category, User, Regulation, PriorityRules, AuditLog, CategoryKeywords, CategoryOfficer,sequelize } = require('../../../models');
+const { Category, User, Regulation, PriorityRules, AuditLog, CategoryKeywords, CategoryOfficer, Complaint, Appeal, sequelize } = require('../../../models');
 const axios = require('axios');
 
 // 1. GET /api/admin/categories - جلب كل الأقسام
@@ -223,19 +223,98 @@ exports.getSystemAuditLogs = (filters) => {
     if (filters.user_id) whereClause.user_id = filters.user_id;
     if (filters.entity_type) whereClause.entity_type = filters.entity_type;
     
-    if (filters.from && filters.to) {
+    if (filters.from || filters.to) {
         const { Op } = require('sequelize');
-        whereClause.createdAt = { // عدلنا دي برضه للأمان لتطابق الموديل
-            [Op.between]: [new Date(filters.from), new Date(filters.to)]
-        };
+        whereClause.createdAt = {};
+        if (filters.from) {
+            whereClause.createdAt[Op.gte] = new Date(filters.from);
+        }
+        if (filters.to) {
+            whereClause.createdAt[Op.lte] = new Date(filters.to);
+        }
     }
 
     return AuditLog.findAll({
         where: whereClause,
-        order: [['createdAt', 'DESC']], // 🔥 هنا السر! عدلناها لـ createdAt عشان تطابق الجدول والموديل
+        order: [['createdAt', 'DESC']], 
         include: [{
             model: User,
             attributes: ['full_name']
         }]
     });
+};
+
+// 14. GET /api/admin/insights - جلب إحصائيات الأدمن
+exports.getAdminInsights = async () => {
+    const [
+        topDepartmentsRaw,
+        categoryTrendsRaw,
+        totalComplaints,
+        resolvedComplaints,
+        totalAppeals,
+        monthlyVolumeRaw
+    ] = await Promise.all([
+        sequelize.query(`
+            SELECT s.department AS name, COUNT(comp.id)::int AS count
+            FROM "Complaints" comp
+            JOIN users u ON u.id = comp.user_id
+            JOIN "Students" s ON s.id = u.student_id
+            WHERE s.department IS NOT NULL
+            GROUP BY s.department
+            ORDER BY count DESC
+            LIMIT 5
+        `, { type: sequelize.QueryTypes.SELECT }),
+
+        sequelize.query(`
+            SELECT c.name AS category, COUNT(comp.id)::int AS count
+            FROM categories c
+            LEFT JOIN "Complaints" comp ON comp.category_id = c.id
+            GROUP BY c.name
+            ORDER BY count DESC
+        `, { type: sequelize.QueryTypes.SELECT }),
+
+        Complaint.count(),
+        Complaint.count({ where: { status: 'resolved' } }),
+        Appeal.count(),
+
+        sequelize.query(`
+            SELECT
+                TO_CHAR("createdAt", 'YYYY-MM') AS month,
+                COUNT(id)::int AS count
+            FROM "Complaints"
+            GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+            ORDER BY month ASC
+        `, { type: sequelize.QueryTypes.SELECT })
+    ]);
+
+    const top_departments = topDepartmentsRaw.map(row => ({
+        name: row.name,
+        count: parseInt(row.count, 10) || 0
+    }));
+
+    const category_trends = categoryTrendsRaw.map(row => ({
+        category: row.category,
+        count: parseInt(row.count, 10) || 0
+    }));
+
+    const resolution_rate = totalComplaints > 0 
+        ? Math.round((resolvedComplaints / totalComplaints) * 100) 
+        : 0;
+
+    const appeal_rate = totalComplaints > 0 
+        ? Math.round((totalAppeals / totalComplaints) * 100) 
+        : 0;
+
+    const monthly_volume = monthlyVolumeRaw.map(row => ({
+        month: row.month,
+        count: parseInt(row.count, 10) || 0
+    }));
+
+    return {
+        top_departments,
+        category_trends,
+        resolution_rate,
+        appeal_rate,
+        monthly_volume
+    };
 };
