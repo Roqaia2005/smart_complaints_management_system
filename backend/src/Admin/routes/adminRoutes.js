@@ -26,7 +26,4 @@ router.post('/priority-rules', adminController.savePriorityRule);
 // --- (Audit Logs) --- 
 router.get('/audit-logs', adminController.getAuditLogs);
 
-// --- (Insights) ---
-router.get('/insights', adminController.getInsights);
-
 module.exports = router;

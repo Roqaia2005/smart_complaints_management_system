@@ -106,16 +106,9 @@ exports.getAuditLogs = (req, res) => {
                 action: log.action,
                 entity_type: log.entity_type,
                 entity_id: log.entity_id,
-                created_at: log.createdAt
+                created_at: log.created_at
             }));
             res.status(200).json({ logs: formattedLogs });
         })
-        .catch(err => res.status(500).json({ success: false, error: err.message }));
-};
-
-// 14. جلب إحصائيات لوحة التحكم للأدمن
-exports.getInsights = (req, res) => {
-    adminService.getAdminInsights()
-        .then(insights => res.status(200).json(insights))
         .catch(err => res.status(500).json({ success: false, error: err.message }));
 };

@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
     full_name: DataTypes.STRING,
     email: DataTypes.STRING,
     password_hash: DataTypes.STRING,
-    role: DataTypes.ENUM('student', 'officer', 'admin'),
+  role: DataTypes.ENUM('student', 'officer', 'manager', 'admin', 'super_admin'),
     is_active: DataTypes.BOOLEAN
   }, {
     sequelize,

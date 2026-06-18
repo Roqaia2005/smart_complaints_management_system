@@ -8,6 +8,8 @@ const studentRoutes = require('./Student/routes/route');
 const managerRoutes = require('./Manager/routes/manager.routes');
 const officerRoutes = require('./Officer/routes/officer.routes');
 const adminRoutes = require('./Admin/routes/adminRoutes');
+const authRoutes= require("./Auth/routes/auth.routes");
+const superAdminRoutes= require('./SuperAdmin/routes/superAdmin.route')
 
 const app = express();
 
@@ -22,6 +24,8 @@ app.use('/api/complaints', studentRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/officer', officerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use("/api/auth",authRoutes);
+app.use("/api/super-admin",superAdminRoutes)
 // Port
 const PORT = process.env.PORT || 3000;
 
