@@ -701,6 +701,33 @@
 					"name": "Users",
 					"item": [
 						{
+							"name": "Get Pending Approvals",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/pending",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										"pending"
+									]
+								},
+								"description": "Lists officer and manager accounts awaiting admin approval (is_active = false)."
+							},
+							"response": []
+						},
+						{
 							"name": "Get All Users",
 							"request": {
 								"method": "GET",
@@ -746,7 +773,77 @@
 										"users"
 									]
 								},
-								"description": "Creates a new user account (student, officer, manager, or admin)."
+								"description": "Creates a new officer or manager account directly (active immediately). Requires admin authentication."
+							},
+							"response": []
+						},
+						{
+							"name": "Approve User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id/approve",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The pending user ID"
+										}
+									]
+								},
+								"description": "Approves a pending officer or manager signup, setting is_active to true so they can log in."
+							},
+							"response": []
+						},
+						{
+							"name": "Reject User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id/reject",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The pending user ID"
+										}
+									]
+								},
+								"description": "Rejects a pending officer or manager signup and deletes the registration."
 							},
 							"response": []
 						},
@@ -1122,9 +1219,205 @@
 								"register"
 							]
 						},
-						"description": "Registers/creates the student's account with the provided password once OTP is successfully verified."
+						"description": "Registers/creates the student's account with the provided password once OTP is successfully verified. Account is active immediately."
 					},
 					"response": []
+				},
+				{
+					"name": "Officer Signup",
+					"item": [
+						{
+							"name": "Send Officer OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"officer.name@fci-cu.edu.eg\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/officer/send-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"officer",
+										"send-otp"
+									]
+								},
+								"description": "Sends a 6-digit OTP to the officer's university email. Email must match the domain configured in system settings."
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Officer OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"officer.name@fci-cu.edu.eg\",\n  \"otp_code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/officer/verify-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"officer",
+										"verify-otp"
+									]
+								},
+								"description": "Verifies the officer-submitted OTP code before registration."
+							},
+							"response": []
+						},
+						{
+							"name": "Register Officer",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Officer Name\",\n  \"email\": \"officer.name@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register/officer",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register",
+										"officer"
+									]
+								},
+								"description": "Creates an officer account after OTP verification. Account is inactive until an admin approves it."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Manager Signup",
+					"item": [
+						{
+							"name": "Send Manager OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"manager.name@fci-cu.edu.eg\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/manager/send-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"manager",
+										"send-otp"
+									]
+								},
+								"description": "Sends a 6-digit OTP to the manager's university email. Email must match the domain configured in system settings."
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Manager OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"manager.name@fci-cu.edu.eg\",\n  \"otp_code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/manager/verify-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"manager",
+										"verify-otp"
+									]
+								},
+								"description": "Verifies the manager-submitted OTP code before registration."
+							},
+							"response": []
+						},
+						{
+							"name": "Register Manager",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Manager Name\",\n  \"email\": \"manager.name@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register/manager",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register",
+										"manager"
+									]
+								},
+								"description": "Creates a manager account after OTP verification. Account is inactive until an admin approves it."
+							},
+							"response": []
+						}
+					]
 				},
 				{
 					"name": "Login",
@@ -1152,7 +1445,7 @@
 								"login"
 							]
 						},
-						"description": "Authenticates any user (Student, Officer, Manager, Admin, Super Admin) with email/password and returns a JWT token."
+						"description": "Authenticates any active user (Student, Officer, Manager, Admin, Super Admin) with email/password and returns a JWT token. Returns 403 if the account is pending admin approval."
 					},
 					"response": []
 				}
@@ -1368,6 +1661,16 @@
 		{
 			"key": "baseUrl",
 			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "superAdminToken",
+			"value": "",
 			"type": "string"
 		}
 	]
