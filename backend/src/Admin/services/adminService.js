@@ -1,5 +1,8 @@
-const { Category, User, Regulation, PriorityRules, AuditLog, CategoryKeywords, CategoryOfficer,sequelize } = require('../../../models');
+const { Category, User, Regulation, PriorityRules, AuditLog, CategoryKeywords, CategoryOfficer, sequelize } = require('../../../models');
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
+const { ROLES, ADMIN_PROVISIONABLE_ROLES } = require('../../Auth/constants/roles');
 
 // 1. GET /api/admin/categories - جلب كل الأقسام
 exports.getAllCategories = () => {
@@ -77,14 +80,63 @@ exports.getAllUsers = () => {
     });
 };
 
+exports.getPendingApprovals = () => {
+    return User.findAll({
+        where: {
+            is_active: false,
+            role: { [Op.in]: [ROLES.OFFICER, ROLES.MANAGER] },
+        },
+        attributes: ['id', 'full_name', 'email', 'role', 'is_active', 'createdAt'],
+        order: [['createdAt', 'DESC']],
+    });
+};
+
+exports.approveUser = async (id) => {
+    const user = await User.findOne({
+        where: {
+            id,
+            is_active: false,
+            role: { [Op.in]: [ROLES.OFFICER, ROLES.MANAGER] },
+        },
+    });
+
+    if (!user) throw new Error('Pending user not found.');
+
+    await user.update({ is_active: true });
+    return user;
+};
+
+exports.rejectUser = async (id) => {
+    const user = await User.findOne({
+        where: {
+            id,
+            is_active: false,
+            role: { [Op.in]: [ROLES.OFFICER, ROLES.MANAGER] },
+        },
+    });
+
+    if (!user) throw new Error('Pending user not found.');
+
+    await user.destroy();
+};
+
 // 6. POST /api/admin/users - إنشاء حساب موظف أو أدمن جديد
-exports.createNewUser = (data) => {
+exports.createNewUser = async (data) => {
+    if (!ADMIN_PROVISIONABLE_ROLES.includes(data.role)) {
+        throw new Error('Admins can only create officer or manager accounts.');
+    }
+
+    const existing = await User.findOne({ where: { email: data.email.trim().toLowerCase() } });
+    if (existing) throw new Error('Email already exists.');
+
+    const password_hash = await bcrypt.hash(data.password, 10);
+
     return User.create({
         full_name: data.full_name,
-        email: data.email,
-        password_hash: data.password, 
+        email: data.email.trim().toLowerCase(),
+        password_hash,
         role: data.role,
-        is_active: true
+        is_active: true,
     });
 };
 

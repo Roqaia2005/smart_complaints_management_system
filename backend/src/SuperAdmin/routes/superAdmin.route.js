@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const authenticate = require("../../middlewares/auth");
-const { isSuperAdmin } = require("../../middlewares/authorize");
+const authenticate = require("../../Middlewares/auth");
+const { isSuperAdmin } = require("../../Middlewares/authorize");
 const controller = require("../controllers/superAdmin.controller");
 
 // كل الـ routes دي محتاجة super_admin بس

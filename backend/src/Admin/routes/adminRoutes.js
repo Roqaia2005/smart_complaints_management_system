@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const authenticate = require('../../Middlewares/auth');
+const { isAdmin } = require('../../Middlewares/authorize');
+
+router.use(authenticate, isAdmin);
 
 // --- (Categories) --- 
 router.get('/categories', adminController.getCategories);
@@ -9,8 +13,11 @@ router.patch('/categories/:id', adminController.patchCategory);
 router.delete('/categories/:id', adminController.deleteCategory);
 
 // --- (Users) --- 
+router.get('/users/pending', adminController.getPendingApprovals);
 router.get('/users', adminController.getUsers);
 router.post('/users', adminController.addUser);
+router.patch('/users/:id/approve', adminController.approveUser);
+router.patch('/users/:id/reject', adminController.rejectUser);
 router.delete('/users/:id', adminController.deleteUser);
 router.patch('/users/:id', adminController.patchUser);
 

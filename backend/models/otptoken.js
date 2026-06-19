@@ -15,6 +15,8 @@ module.exports = (sequelize, DataTypes) => {
   }
   OtpToken.init({
     student_number: DataTypes.STRING,
+    email: DataTypes.STRING,
+    signup_role: DataTypes.ENUM('officer', 'manager'),
     otp_code: DataTypes.STRING,
     expires_at: DataTypes.DATE,
     is_used: DataTypes.BOOLEAN

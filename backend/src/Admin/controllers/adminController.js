@@ -35,11 +35,38 @@ exports.getUsers = (req, res) => {
         .catch(err => res.status(500).json({ success: false, error: err.message }));
 };
 
+exports.getPendingApprovals = (req, res) => {
+    adminService.getPendingApprovals()
+        .then(users => res.status(200).json({ success: true, users }))
+        .catch(err => res.status(500).json({ success: false, error: err.message }));
+};
+
+exports.approveUser = (req, res) => {
+    adminService.approveUser(req.params.id)
+        .then(user => res.status(200).json({
+            success: true,
+            user: {
+                id: user.id,
+                full_name: user.full_name,
+                email: user.email,
+                role: user.role,
+                is_active: user.is_active,
+            },
+        }))
+        .catch(err => res.status(400).json({ success: false, error: err.message }));
+};
+
+exports.rejectUser = (req, res) => {
+    adminService.rejectUser(req.params.id)
+        .then(() => res.status(200).json({ success: true }))
+        .catch(err => res.status(400).json({ success: false, error: err.message }));
+};
+
 // 6. إضافة مستخدم
 exports.addUser = (req, res) => {
     adminService.createNewUser(req.body)
         .then(newUser => res.status(201).json({ success: true, user_id: newUser.id }))
-        .catch(err => res.status(500).json({ success: false, error: err.message }));
+        .catch(err => res.status(400).json({ success: false, error: err.message }));
 };
 
 // 7. تعديل مستخدم
