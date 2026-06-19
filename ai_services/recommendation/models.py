@@ -124,6 +124,11 @@ class AiRecommendation(Base):
 
     category         = relationship("Category", back_populates="recommendations")
 
+    @property
+    def category_name(self):
+        return self.category.name if self.category else "General"
+
+
 
 class AnalysisReport(Base):
     __tablename__ = "AnalysisReports"

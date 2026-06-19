@@ -1,32 +1,48 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Skeleton } from '../../components/ui/skeleton';
 import {
-  TrendingUp,
-  Users,
-  Clock,
-  CheckCircle,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  MoreHorizontal
+  TrendingUp, Users, Clock, CheckCircle,
+  ArrowUpRight, ArrowDownRight, Activity, AlertTriangle
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { managerApi } from '../../api/services';
+import type { OverviewData, DepartmentPerformance } from '../../types/api';
 
 export default function ManagerOverview() {
-  const stats = [
-    { label: 'Total Complaints', value: '1,284', change: '+12%', trend: 'up', icon: Activity, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { label: 'Active Students', value: '842', change: '+5%', trend: 'up', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { label: 'Avg. Response', value: '2.4h', change: '-15%', trend: 'up', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { label: 'Resolution Rate', value: '92%', change: '+3%', trend: 'up', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  ];
+  const [overview, setOverview]   = useState<OverviewData | null>(null);
+  const [depts, setDepts]         = useState<DepartmentPerformance[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
 
-  const departments = [
-    { name: 'IT Infrastructure', head: 'Dr. Sarah Wilson', resolved: 452, pending: 12, rating: 4.8 },
-    { name: 'Student Records', head: 'Prof. James Bond', resolved: 310, pending: 28, rating: 4.2 },
-    { name: 'Facilities Management', head: 'Eng. Mike Ross', resolved: 284, pending: 45, rating: 3.9 },
-    { name: 'Academic Affairs', head: 'Dr. Rachel Zane', resolved: 156, pending: 8, rating: 4.9 },
-  ];
+  useEffect(() => {
+    Promise.all([
+      managerApi.getOverview(),
+      managerApi.getDepartmentPerformance(),
+    ])
+      .then(([ovRes, dpRes]) => {
+        setOverview(ovRes.data.overviewData ?? ovRes.data);
+        setDepts(dpRes.data.departments ?? []);
+      })
+      .catch(err => setError(err.message || 'Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const stats = overview ? [
+    { label: 'Total Complaints', value: String(overview.total),     icon: Activity,     color: 'text-blue-500',    bg: 'bg-blue-500/10' },
+    { label: 'Pending',          value: String(overview.pending),   icon: Clock,        color: 'text-amber-500',   bg: 'bg-amber-500/10' },
+    { label: 'Resolved',         value: String(overview.resolved),  icon: CheckCircle,  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Appealed',         value: String(overview.appealed),  icon: AlertTriangle,color: 'text-rose-500',    bg: 'bg-rose-500/10' },
+  ] : [];
+
+  if (error) return (
+    <div className="flex items-center gap-3 p-6 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200">
+      <AlertTriangle className="text-rose-600" size={20} />
+      <p className="text-rose-700 font-medium">{error}</p>
+    </div>
+  );
 
   return (
     <div className="space-y-8 animate-in">
@@ -35,97 +51,88 @@ export default function ManagerOverview() {
         <p className="text-slate-500 font-medium">Real-time performance metrics across all university departments</p>
       </div>
 
+      {/* KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className={cn("p-2.5 rounded-xl", stat.bg)}>
-                  <stat.icon className={stat.color} size={20} />
+        {loading
+          ? [1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)
+          : stats.map((stat, i) => (
+            <Card key={i} className="border-none shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className={cn("p-2.5 rounded-xl", stat.bg)}>
+                    <stat.icon className={stat.color} size={20} />
+                  </div>
                 </div>
-                <div className={cn(
-                  "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full",
-                  stat.trend === 'up' ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
-                )}>
-                  {stat.trend === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                  {stat.change}
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                  <h3 className="text-3xl font-bold mt-1">{stat.value}</h3>
                 </div>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <h3 className="text-3xl font-bold mt-1">{stat.value}</h3>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        }
       </div>
 
+      {/* Department performance table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between border-b dark:border-slate-800">
+        <div className="flex flex-row items-center justify-between border-b dark:border-slate-800 px-6 py-4">
           <div>
-            <CardTitle className="text-lg">Department Performance</CardTitle>
-            <p className="text-xs text-slate-500 font-medium">Monthly efficiency and student satisfaction ranking</p>
+            <h2 className="text-lg font-bold">Department Performance</h2>
+            <p className="text-xs text-slate-500 font-medium">Efficiency by student department</p>
           </div>
-          <Badge variant="outline" className="h-8">Last 30 Days</Badge>
-        </CardHeader>
+          <Badge variant="outline" className="h-8">Live Data</Badge>
+        </div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900/30 border-b dark:border-slate-800">
                   <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</th>
                   <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resolved</th>
-                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending</th>
                   <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Efficiency</th>
-                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Satisfaction</th>
-                  <th className="p-4"></th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg. Res. Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-slate-800">
-                {departments.map((dept, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="p-4">
-                      <p className="font-bold text-slate-800 dark:text-slate-200">{dept.name}</p>
-                      <p className="text-xs text-slate-500">Lead: {dept.head}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className="font-mono font-bold text-emerald-600">{dept.resolved}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="font-mono font-bold text-amber-600">{dept.pending}</span>
-                    </td>
-                    <td className="p-4 w-48">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full"
-                            style={{ width: `${(dept.resolved / (dept.resolved + dept.pending)) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500">
-                          {Math.round((dept.resolved / (dept.resolved + dept.pending)) * 100)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center text-amber-500">
-                          {Array.from({ length: 5 }).map((_, idx) => (
-                            <svg key={idx} className={cn("w-3 h-3 fill-current", idx >= Math.floor(dept.rating) && "text-slate-200 dark:text-slate-700")} viewBox="0 0 24 24">
-                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <span className="text-xs font-bold">{dept.rating}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <button className="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                        <MoreHorizontal size={20} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {loading
+                  ? [1,2,3].map(i => (
+                    <tr key={i}><td colSpan={5} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
+                  ))
+                  : depts.length === 0
+                    ? (
+                      <tr><td colSpan={5} className="p-8 text-center text-slate-400 text-sm">No department data available</td></tr>
+                    )
+                    : depts.map((dept, i) => {
+                      const efficiency = dept.total > 0
+                        ? Math.round((dept.resolved / dept.total) * 100)
+                        : 0;
+                      return (
+                        <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="p-4">
+                            <p className="font-bold text-slate-800 dark:text-slate-200">{dept.name}</p>
+                          </td>
+                          <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400">{dept.total}</td>
+                          <td className="p-4">
+                            <span className="font-mono font-bold text-emerald-600">{dept.resolved}</span>
+                          </td>
+                          <td className="p-4 w-48">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${efficiency}%` }} />
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-500">{efficiency}%</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-mono font-bold text-slate-600 dark:text-slate-400">
+                              {dept.avg_hours}h
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                }
               </tbody>
             </table>
           </div>
