@@ -43,7 +43,8 @@ async def create_complaint(
     )
     await db.commit()
     row = result.fetchone()
-    assert row is not None
+    if row is None:
+        raise RuntimeError("Failed to create complaint")
     return row.id
 
 
@@ -54,3 +55,14 @@ async def get_sla_hours(db: AsyncSession, category_id: int) -> int | None:
     )
     row = result.fetchone()
     return row.sla_hours if row else None
+
+
+async def attach_file(db: AsyncSession, complaint_id: int, file_url: str, file_type: str | None = None):
+    await db.execute(
+        text('''
+            INSERT INTO "ComplaintAttachments" (complaint_id, file_url, file_type, "createdAt")
+            VALUES (:cid, :url, :ftype, NOW())
+        '''),
+        {"cid": complaint_id, "url": file_url, "ftype": file_type}
+    )
+    await db.commit()

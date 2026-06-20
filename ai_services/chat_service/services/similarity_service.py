@@ -5,14 +5,17 @@ from sqlalchemy import text
 from groq import Groq
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv()
+
+logger = logging.getLogger("chat_service")
 
 embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
-DUPLICATE_CANDIDATE_THRESHOLD = 0.45  # low bar - just rules out obviously unrelated complaints
+DUPLICATE_CANDIDATE_THRESHOLD = 0.45
 SUGGESTION_CANDIDATE_THRESHOLD = 0.45
 
 
@@ -40,8 +43,8 @@ def _cosine_similarity(a, b) -> float:
 
 
 def _is_same_complaint(problem_text: str, candidate_text: str) -> bool:
-    # Embedding similarity alone is too weak for short paraphrased technical text -
-    # ask the model directly whether these describe the same underlying issue
+    # Embedding similarity alone is too weak for short paraphrased text -
+    # confirm with the LLM whether these describe the same underlying issue
     prompt = f"""A student submitted this complaint: "{problem_text}"
 
 The student has another open complaint already on file: "{candidate_text}"
@@ -51,15 +54,21 @@ or are they genuinely two different problems (even if in the same general catego
 
 Answer with ONLY one word: SAME or DIFFERENT."""
 
-    response = groq_client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_tokens=5,
-    )
-    message_content = getattr(response.choices[0].message, "content", "") or ""
-    answer = message_content.strip().upper()
-    return answer.startswith("SAME")
+    try:
+        response = groq_client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=5,
+        )
+        message_content = getattr(response.choices[0].message, "content", "") or ""
+        answer = message_content.strip().upper()
+        return answer.startswith("SAME")
+    except Exception as e:
+        # If the relevance check fails, be conservative and assume different -
+        # better to create a possible duplicate than to silently block a real complaint
+        logger.error(f"Duplicate confirmation check failed, defaulting to not-duplicate: {e}")
+        return False
 
 
 async def find_similar_open_complaint(
@@ -79,7 +88,6 @@ async def find_similar_open_complaint(
 
     new_embedding = embedder.encode(problem_text)
 
-    # Rank candidates by embedding similarity first - cheap prefilter
     candidates = []
     for row in open_complaints:
         existing_embedding = embedder.encode(row.problem)
@@ -89,7 +97,6 @@ async def find_similar_open_complaint(
 
     candidates.sort(key=lambda x: x[0], reverse=True)
 
-    # Confirm with the LLM for anything that passed the loose prefilter
     for similarity, row in candidates:
         if _is_same_complaint(problem_text, row.problem):
             return {"complaint_id": row.id, "status": row.status}
@@ -148,15 +155,20 @@ a disciplinary action against a specific person, or anything that doesn't genera
 
 Answer with ONLY one word: YES or NO."""
 
-    response = groq_client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_tokens=5,
-    )
-    message_content = getattr(response.choices[0].message, "content", "") or ""
-    answer = message_content.strip().upper()
-    return answer.startswith("YES")
+    try:
+        response = groq_client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=5,
+        )
+        message_content = getattr(response.choices[0].message, "content", "") or ""
+        answer = message_content.strip().upper()
+        return answer.startswith("YES")
+    except Exception as e:
+        # If the check fails, be conservative and don't show the suggestion
+        logger.error(f"Resolution transferability check failed, suppressing suggestion: {e}")
+        return False
 
 
 async def seed_resolved_complaints(db: AsyncSession):
@@ -174,6 +186,11 @@ async def seed_resolved_complaints(db: AsyncSession):
     collection = get_complaints_collection()
     existing_ids = set(collection.get()["ids"])
 
+    indexed_count = 0
     for row in rows:
         if str(row.id) not in existing_ids:
             await index_resolved_complaint(row.id, row.category_id, row.problem, row.resolution_text)
+            indexed_count += 1
+
+    if indexed_count:
+        logger.info(f"Indexed {indexed_count} resolved complaints into ChromaDB on startup")
