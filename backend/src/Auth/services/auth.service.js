@@ -50,6 +50,8 @@ const validatePassword = (password) => {
   }
 };
 
+const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+
 const sendOtpEmail = async (to, otp_code, expirySeconds) => {
   const transporter = createTransporter();
   await transporter.sendMail({
@@ -67,20 +69,42 @@ const sendOtpEmail = async (to, otp_code, expirySeconds) => {
   });
 };
 
-// ==================== Check Student ====================
+// =========================================================================
+// STUDENT FLOW
+// The Admin already created the Student record (via create or CSV import)
+// in the `Students` table. The student then verifies their email via OTP
+// and sets their own password, which creates their `User` record.
+// =========================================================================
+
+// ==================== Check Student Exists ====================
 
 const checkStudent = async (student_number) => {
   const student = await Student.findOne({ where: { student_number } });
-  if (!student) return { exists: false };
+
+  if (!student) {
+    return { exists: false };
+  }
 
   const existingUser = await User.findOne({
     where: { student_id: student.id },
   });
 
-  if (existingUser) throw new Error("Student already has an account.");
+  if (existingUser) {
+    return {
+      exists: true,
+      already_registered: true,
+      student_data: {
+        name: student.full_name,
+        email: student.email,
+        department: student.department,
+        academic_year: student.academic_year,
+      },
+    };
+  }
 
   return {
     exists: true,
+    already_registered: false,
     student_data: {
       name: student.full_name,
       email: student.email,
@@ -96,8 +120,11 @@ const sendOtp = async (student_number) => {
   const student = await Student.findOne({ where: { student_number } });
   if (!student) throw new Error("Student not found.");
 
+  const existingUser = await User.findOne({ where: { student_id: student.id } });
+  if (existingUser) throw new Error("This student already has an account. Please log in.");
+
   const expirySeconds = await getOtpExpirySeconds();
-  const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp_code = generateOtpCode();
   const expires_at = new Date(Date.now() + expirySeconds * 1000);
 
   await OtpToken.destroy({ where: { student_number } });
@@ -138,13 +165,13 @@ const registerStudent = async (student_number, password) => {
   const student = await Student.findOne({ where: { student_number } });
   if (!student) throw new Error("Student not found.");
 
+  const existingUser = await User.findOne({ where: { student_id: student.id } });
+  if (existingUser) throw new Error("Account already exists. Please log in.");
+
   const usedOtp = await OtpToken.findOne({
     where: { student_number, is_used: true },
   });
   if (!usedOtp) throw new Error("OTP verification required before registration.");
-
-  const existingUser = await User.findOne({ where: { student_id: student.id } });
-  if (existingUser) throw new Error("Account already exists.");
 
   const password_hash = await hashPassword(password);
 
@@ -160,7 +187,14 @@ const registerStudent = async (student_number, password) => {
   return generateAuthResponse(user);
 };
 
-// ==================== Staff OTP (Officer / Manager) ====================
+// =========================================================================
+// STAFF FLOW (Officer / Manager)
+// The Admin already created the User record (email + role, NO password)
+// via create or CSV import. The staff member verifies their email via OTP
+// and sets their own password, which completes (updates) that same record.
+// =========================================================================
+
+// ==================== Send OTP (Officer / Manager) ====================
 
 const sendStaffOtp = async (email, role) => {
   if (!STAFF_SIGNUP_ROLES.includes(role)) {
@@ -168,16 +202,26 @@ const sendStaffOtp = async (email, role) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+
   const emailDomain = await getEmailDomain();
   if (!isEmailAllowed(normalizedEmail, emailDomain)) {
     throw new Error(`Email must use the configured university domain (${emailDomain}).`);
   }
 
-  const existingUser = await User.findOne({ where: { email: normalizedEmail } });
-  if (existingUser) throw new Error("An account with this email already exists.");
+  const user = await User.findOne({
+    where: { email: normalizedEmail, role }
+  });
+
+  if (!user) {
+    throw new Error("This email was not found. Please contact your administrator.");
+  }
+
+  if (user.password_hash) {
+    throw new Error("This account is already registered. Please log in.");
+  }
 
   const expirySeconds = await getOtpExpirySeconds();
-  const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp_code = generateOtpCode();
   const expires_at = new Date(Date.now() + expirySeconds * 1000);
 
   await OtpToken.destroy({ where: { email: normalizedEmail, signup_role: role } });
@@ -194,6 +238,8 @@ const sendStaffOtp = async (email, role) => {
 
   return { success: true, message: "OTP sent to your university email" };
 };
+
+// ==================== Verify OTP (Officer / Manager) ====================
 
 const verifyStaffOtp = async (email, otp_code, role) => {
   if (!STAFF_SIGNUP_ROLES.includes(role)) {
@@ -217,7 +263,7 @@ const verifyStaffOtp = async (email, otp_code, role) => {
 
 // ==================== Register Staff (Officer / Manager) ====================
 
-const registerStaff = async (full_name, email, password, role) => {
+const registerStaff = async (email, password, role) => {
   if (!STAFF_SIGNUP_ROLES.includes(role)) {
     throw new Error("Invalid role for staff signup.");
   }
@@ -225,68 +271,97 @@ const registerStaff = async (full_name, email, password, role) => {
   validatePassword(password);
 
   const normalizedEmail = email.trim().toLowerCase();
-  const emailDomain = await getEmailDomain();
-  if (!isEmailAllowed(normalizedEmail, emailDomain)) {
-    throw new Error(`Email must use the configured university domain (${emailDomain}).`);
+
+  const user = await User.findOne({
+    where: { email: normalizedEmail, role }
+  });
+
+  if (!user) {
+    throw new Error("This email was not found. Please contact your administrator.");
+  }
+
+  if (user.password_hash) {
+    throw new Error("This account is already registered. Please log in.");
   }
 
   const usedOtp = await OtpToken.findOne({
     where: { email: normalizedEmail, signup_role: role, is_used: true },
   });
-  if (!usedOtp) throw new Error("OTP verification required before registration.");
 
-  const existingUser = await User.findOne({ where: { email: normalizedEmail } });
-  if (existingUser) throw new Error("Account already exists.");
+  if (!usedOtp) {
+    throw new Error("OTP verification required before registration.");
+  }
 
   const password_hash = await hashPassword(password);
 
-  const user = await User.create({
-    full_name: full_name.trim(),
-    email: normalizedEmail,
+  await user.update({
     password_hash,
-    role,
-    is_active: false,
+    is_active: true
   });
 
-  return {
-    success: true,
-    message: "Registration submitted. Your account is pending admin approval before you can log in.",
-    user: { id: user.id, name: user.full_name, role: user.role, is_active: user.is_active },
-  };
+  return generateAuthResponse(user);
 };
 
-const registerOfficer = (full_name, email, password) =>
-  registerStaff(full_name, email, password, ROLES.OFFICER);
+const registerOfficer = (email, password) =>
+  registerStaff(email, password, ROLES.OFFICER);
 
-const registerManager = (full_name, email, password) =>
-  registerStaff(full_name, email, password, ROLES.MANAGER);
+const registerManager = (email, password) =>
+  registerStaff(email, password, ROLES.MANAGER);
 
-// ==================== Login ====================
+const sendOfficerOtp = (email) => sendStaffOtp(email, ROLES.OFFICER);
+const sendManagerOtp = (email) => sendStaffOtp(email, ROLES.MANAGER);
+
+const verifyOfficerOtp = (email, otp_code) => verifyStaffOtp(email, otp_code, ROLES.OFFICER);
+const verifyManagerOtp = (email, otp_code) => verifyStaffOtp(email, otp_code, ROLES.MANAGER);
+
+// =========================================================================
+// LOGIN (shared by all roles: student, officer, manager, admin, super_admin)
+// =========================================================================
 
 const login = async (email, password) => {
+
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ where: { email: normalizedEmail } });
 
-  if (!user) throw new Error("Invalid email or password.");
+  if (!user) {
+    throw new Error("Invalid email or password.");
+  }
+
+  // Account was created by an Admin but the person hasn't completed
+  // registration yet (no password set).
+  if (!user.password_hash) {
+    throw new Error("Please complete your registration first.");
+  }
 
   const isMatch = await bcrypt.compare(password, user.password_hash);
-  if (!isMatch) throw new Error("Invalid email or password.");
+  if (!isMatch) {
+    throw new Error("Invalid email or password.");
+  }
 
   if (!user.is_active) {
-    throw new Error("Your account is pending admin approval.");
+    throw new Error("Your account has been deactivated. Please contact your administrator.");
   }
 
   return generateAuthResponse(user);
 };
 
 module.exports = {
+  // student
   checkStudent,
   sendOtp,
   verifyOtp,
   registerStudent,
+  // staff (generic, role passed explicitly)
   sendStaffOtp,
   verifyStaffOtp,
+  registerStaff,
+  // staff (role-bound convenience wrappers)
   registerOfficer,
   registerManager,
+  sendOfficerOtp,
+  sendManagerOtp,
+  verifyOfficerOtp,
+  verifyManagerOtp,
+  // shared
   login,
 };
