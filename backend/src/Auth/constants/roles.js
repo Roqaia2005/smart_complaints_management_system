@@ -1,0 +1,17 @@
+const ROLES = {
+  STUDENT: 'student',
+  OFFICER: 'officer',
+  MANAGER: 'manager',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
+};
+
+const STAFF_SIGNUP_ROLES = [ROLES.OFFICER, ROLES.MANAGER];
+
+const ADMIN_PROVISIONABLE_ROLES = [ROLES.OFFICER, ROLES.MANAGER];
+
+module.exports = {
+  ROLES,
+  STAFF_SIGNUP_ROLES,
+  ADMIN_PROVISIONABLE_ROLES,
+};

@@ -1,0 +1,1677 @@
+{
+	"info": {
+		"_postman_id": "1baa4d93-a49f-4f57-a19f-43429a8cad9d",
+		"name": "Smart Complaints Management System",
+		"description": "API collection for Smart Complaints Management System backend, containing Student, Officer, Manager, and Admin endpoints.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Student Endpoints",
+			"item": [
+				{
+					"name": "Create Complaint",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 1,\n  \"category_id\": 1,\n  \"problem\": \"الإنترنت في المدينة الجامعية بمبنى د لا يعمل منذ 3 أيام.\",\n  \"location\": \"المدينة الجامعية - مبنى د\",\n  \"since\": \"2026-06-18\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/complaints",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"complaints"
+							]
+						},
+						"description": "Submits a new student complaint. Requires: user_id, category_id, problem, location, since."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Student Complaints",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/complaints/student/:student_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"complaints",
+								"student",
+								":student_id"
+							],
+							"variable": [
+								{
+									"key": "student_id",
+									"value": "1",
+									"description": "The student user's ID"
+								}
+							]
+						},
+						"description": "Retrieves all complaints submitted by a specific student."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Complaint Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/complaints/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"complaints",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The complaint ID"
+								}
+							]
+						},
+						"description": "Retrieves the full details of a specific complaint by its ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Appeal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"القرار غير عادل ولم يتم حل المشكلة بشكل كامل.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/complaints/:id/appeal",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"complaints",
+								":id",
+								"appeal"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The resolved complaint ID"
+								}
+							]
+						},
+						"description": "Submits an appeal for a resolved complaint."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Officer Endpoints",
+			"item": [
+				{
+					"name": "Get Department Complaints",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/officer/complaints?category_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"officer",
+								"complaints"
+							],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "1",
+									"description": "The category/department ID managed by the officer"
+								}
+							]
+						},
+						"description": "Retrieves all complaints belonging to the officer's department, ordered by AI priority."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Complaint Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/officer/complaints/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"officer",
+								"complaints",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The complaint ID"
+								}
+							]
+						},
+						"description": "Retrieves detailed information about a complaint including student academic info."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Complaint Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"resolved\",\n  \"resolution_text\": \"تم تغيير راوتر الطابق الرابع وتحديث سرعة الإنترنت.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/officer/complaints/:id/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"officer",
+								"complaints",
+								":id",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The complaint ID to update"
+								}
+							]
+						},
+						"description": "Updates a complaint's status to 'in_progress' or 'resolved'. If resolving, a resolution_text is required."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Appealed Complaints",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/officer/appeals?category_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"officer",
+								"appeals"
+							],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "1",
+									"description": "The category/department ID"
+								}
+							]
+						},
+						"description": "Retrieves appealed complaints in the officer's department."
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Appeal as Reviewed",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/officer/appeals/:id/review",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"officer",
+								"appeals",
+								":id",
+								"review"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The appeal ID"
+								}
+							]
+						},
+						"description": "Marks a student's appeal as reviewed."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Manager Endpoints",
+			"item": [
+				{
+					"name": "Get Overview Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/overview?from=2026-01-01",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"overview"
+							],
+							"query": [
+								{
+									"key": "from",
+									"value": "2026-01-01",
+									"description": "Optional filter start date"
+								}
+							]
+						},
+						"description": "Retrieves the count of total, pending, resolved, in-progress complaints, and appeals."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Department Performance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/department-performance",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"department-performance"
+							]
+						},
+						"description": "Retrieves resolution counts and average resolution times in hours per academic department."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Heatmap (by category)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=category",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"heatmap"
+							],
+							"query": [
+								{
+									"key": "dimension",
+									"value": "category",
+									"description": "Dimension: category, location, time, or department"
+								}
+							]
+						},
+						"description": "Retrieves heatmap distribution count by category."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Heatmap (by location)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=location",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"heatmap"
+							],
+							"query": [
+								{
+									"key": "dimension",
+									"value": "location"
+								}
+							]
+						},
+						"description": "Retrieves heatmap distribution count by location."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Heatmap (by time)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=time",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"heatmap"
+							],
+							"query": [
+								{
+									"key": "dimension",
+									"value": "time"
+								}
+							]
+						},
+						"description": "Retrieves heatmap distribution count by time (YYYY-MM)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Heatmap (by department)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=department",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"heatmap"
+							],
+							"query": [
+								{
+									"key": "dimension",
+									"value": "department"
+								}
+							]
+						},
+						"description": "Retrieves heatmap distribution count by academic department."
+					},
+					"response": []
+				},
+				{
+					"name": "Get AI Recommendations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/recommendations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"recommendations"
+							]
+						},
+						"description": "Retrieves AI-generated system recommendations for resolving recurring issues."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Recommendation Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"implemented\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/recommendations/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"recommendations",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "The AI recommendation ID"
+								}
+							]
+						},
+						"description": "Updates the status of an AI recommendation. Allowed: pending, implemented, ignored."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Filtered Reports",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/reports?category_id=1&status=resolved&from=2026-01-01&to=2026-12-31",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"reports"
+							],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "1",
+									"description": "Optional category filter"
+								},
+								{
+									"key": "status",
+									"value": "resolved",
+									"description": "Optional status filter"
+								},
+								{
+									"key": "from",
+									"value": "2026-01-01",
+									"description": "Optional start date filter"
+								},
+								{
+									"key": "to",
+									"value": "2026-12-31",
+									"description": "Optional end date filter"
+								}
+							]
+						},
+						"description": "Retrieves structured reports on complaints based on filters."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Top Issues by Category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/top-issues/:category_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"top-issues",
+								":category_id"
+							],
+							"variable": [
+								{
+									"key": "category_id",
+									"value": "1",
+									"description": "The category ID"
+								}
+							]
+						},
+						"description": "Gets top recurring issues in a given category."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin Endpoints",
+			"item": [
+				{
+					"name": "Categories",
+					"item": [
+						{
+							"name": "Get All Categories",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/categories",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"categories"
+									]
+								},
+								"description": "Gets all active complaint categories."
+							},
+							"response": []
+						},
+						{
+							"name": "Add New Category",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"الخدمات الطلابية والأنشطة\",\n  \"description\": \"شكاوى تتعلق بالرعاية الاجتماعية، الأنشطة الرياضية، الرحلات والخدمات العامة.\",\n  \"sla_hours\": 72,\n  \"keywords\": \"رعاية, نشاط, كافيتريا, مسرح, رحلات\",\n  \"responsible_id\": 2,\n  \"faculty_id\": 1\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/categories",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"categories"
+									]
+								},
+								"description": "Creates a new category, adds keyword associations, assigns an officer, and triggers ChromaDB refresh."
+							},
+							"response": []
+						},
+						{
+							"name": "Edit Category",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"sla_hours\": 48,\n  \"description\": \"تعديل وصف قسم الخدمات العامة للطلاب.\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/categories/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"categories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The category ID to update"
+										}
+									]
+								},
+								"description": "Modifies category metadata details."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Category",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/categories/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"categories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The category ID"
+										}
+									]
+								},
+								"description": "Deactivates a category (Soft delete setting is_active = false)."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Users",
+					"item": [
+						{
+							"name": "Get Pending Approvals",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/pending",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										"pending"
+									]
+								},
+								"description": "Lists officer and manager accounts awaiting admin approval (is_active = false)."
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Users",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users"
+									]
+								},
+								"description": "Retrieves list of all system users (students, officers, managers, admins)."
+							},
+							"response": []
+						},
+						{
+							"name": "Add New User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Ahmed Ali\",\n  \"email\": \"ahmed.ali@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\",\n  \"role\": \"officer\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users"
+									]
+								},
+								"description": "Creates a new officer or manager account directly (active immediately). Requires admin authentication."
+							},
+							"response": []
+						},
+						{
+							"name": "Approve User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id/approve",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id",
+										"approve"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The pending user ID"
+										}
+									]
+								},
+								"description": "Approves a pending officer or manager signup, setting is_active to true so they can log in."
+							},
+							"response": []
+						},
+						{
+							"name": "Reject User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{adminToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id/reject",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id",
+										"reject"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The pending user ID"
+										}
+									]
+								},
+								"description": "Rejects a pending officer or manager signup and deletes the registration."
+							},
+							"response": []
+						},
+						{
+							"name": "Edit User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Ahmed M. Ali\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1",
+											"description": "The user ID"
+										}
+									]
+								},
+								"description": "Updates user details (e.g. name, email, or role)."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete User",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/users/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Deactivates user account (Soft delete setting is_active = false)."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Regulations",
+					"item": [
+						{
+							"name": "Get All Regulations",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/regulations",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"regulations"
+									]
+								},
+								"description": "Gets all university rules and FAQ guidelines."
+							},
+							"response": []
+						},
+						{
+							"name": "Add New Regulation",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"article number\": \"12\",\n  \"content\": \"يحق للطالب التظلم من نتيجة الامتحان خلال 15 يوماً من إعلان النتيجة رسميّاً.\",\n  \"type\": \"rule\",\n  \"faculty_id\": 1\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/regulations",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"regulations"
+									]
+								},
+								"description": "Creates a new regulation rule/FAQ and triggers ChromaDB vector indexing."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Regulation",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/regulations/:id",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"regulations",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Permanently deletes a regulation by ID."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Priority Rules",
+					"item": [
+						{
+							"name": "Get All Priority Rules",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/priority-rules",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"priority-rules"
+									]
+								},
+								"description": "Retrieves the configured AI priority scoring rules."
+							},
+							"response": []
+						},
+						{
+							"name": "Upsert Priority Rule",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"priority level\": 5,\n  \"description\": \"حالات الخطر الجسيمة مثل الماس الكهربائي أو تسريب الغاز في المباني أو الانهيار الجزئي.\",\n  \"examples\": [\"ماس كهربائي\", \"تسريب غاز\", \"حريق\", \"انهيار\"]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/priority-rules",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"priority-rules"
+									]
+								},
+								"description": "Creates or updates an existing priority rule configuration."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Audit Logs",
+					"item": [
+						{
+							"name": "Get Audit Logs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/audit-logs?user_id=1&entity_type=Category&from=2026-01-01&to=2026-12-31",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"audit-logs"
+									],
+									"query": [
+										{
+											"key": "user_id",
+											"value": "1",
+											"description": "Filter by actor user ID"
+										},
+										{
+											"key": "entity_type",
+											"value": "Category",
+											"description": "Filter by entity type (e.g. Category, User, Regulation)"
+										},
+										{
+											"key": "from",
+											"value": "2026-01-01",
+											"description": "Filter start date"
+										},
+										{
+											"key": "to",
+											"value": "2026-12-31",
+											"description": "Filter end date"
+										}
+									]
+								},
+								"description": "Retrieves systemic audit logs tracking changes in categories, users, or regulations."
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Auth Endpoints",
+			"item": [
+				{
+					"name": "Check Student",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"student_number\": \"20210001\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/check-student",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"check-student"
+							]
+						},
+						"description": "Checks if a student exists in the database by their student number before letting them register."
+					},
+					"response": []
+				},
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"student_number\": \"20210001\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/send-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"send-otp"
+							]
+						},
+						"description": "Generates and sends a 6-digit OTP code to the student's registered university email."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"student_number\": \"20210001\",\n  \"otp_code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/verify-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"verify-otp"
+							]
+						},
+						"description": "Verifies the student-submitted OTP code is correct and not expired."
+					},
+					"response": []
+				},
+				{
+					"name": "Register Student",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"student_number\": \"20210001\",\n  \"password\": \"securePassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registers/creates the student's account with the provided password once OTP is successfully verified. Account is active immediately."
+					},
+					"response": []
+				},
+				{
+					"name": "Officer Signup",
+					"item": [
+						{
+							"name": "Send Officer OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"officer.name@fci-cu.edu.eg\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/officer/send-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"officer",
+										"send-otp"
+									]
+								},
+								"description": "Sends a 6-digit OTP to the officer's university email. Email must match the domain configured in system settings."
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Officer OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"officer.name@fci-cu.edu.eg\",\n  \"otp_code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/officer/verify-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"officer",
+										"verify-otp"
+									]
+								},
+								"description": "Verifies the officer-submitted OTP code before registration."
+							},
+							"response": []
+						},
+						{
+							"name": "Register Officer",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Officer Name\",\n  \"email\": \"officer.name@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register/officer",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register",
+										"officer"
+									]
+								},
+								"description": "Creates an officer account after OTP verification. Account is inactive until an admin approves it."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Manager Signup",
+					"item": [
+						{
+							"name": "Send Manager OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"manager.name@fci-cu.edu.eg\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/manager/send-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"manager",
+										"send-otp"
+									]
+								},
+								"description": "Sends a 6-digit OTP to the manager's university email. Email must match the domain configured in system settings."
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Manager OTP",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"manager.name@fci-cu.edu.eg\",\n  \"otp_code\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/manager/verify-otp",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"manager",
+										"verify-otp"
+									]
+								},
+								"description": "Verifies the manager-submitted OTP code before registration."
+							},
+							"response": []
+						},
+						{
+							"name": "Register Manager",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"full_name\": \"Manager Name\",\n  \"email\": \"manager.name@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register/manager",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"register",
+										"manager"
+									]
+								},
+								"description": "Creates a manager account after OTP verification. Account is inactive until an admin approves it."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"ahmed.ali@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticates any active user (Student, Officer, Manager, Admin, Super Admin) with email/password and returns a JWT token. Returns 403 if the account is pending admin approval."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Super Admin Endpoints",
+			"item": [
+				{
+					"name": "Get System Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/system-settings",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"system-settings"
+							]
+						},
+						"description": "Retrieves the global system settings (university name, email domain allowed, OTP expiry, etc.)"
+					},
+					"response": []
+				},
+				{
+					"name": "Upsert System Settings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"university_name\": \"Cairo University\",\n  \"email_domain\": \"fci-cu.edu.eg\",\n  \"otp_expiry_seconds\": 300,\n  \"support_email\": \"support@fci-cu.edu.eg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/system-settings",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"system-settings"
+							]
+						},
+						"description": "Creates or updates global system settings (university_name, email_domain, otp_expiry_seconds, support_email)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Admins",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/admins",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"admins"
+							]
+						},
+						"description": "Retrieves list of all admin users in the system."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Admin User\",\n  \"email\": \"admin.user@fci-cu.edu.eg\",\n  \"password\": \"adminSecurePassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/admins",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"admins"
+							]
+						},
+						"description": "Creates a new system administrator user."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Admin",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Updated Admin Name\",\n  \"password\": \"newAdminPassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/admins/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"admins",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "2",
+									"description": "The admin user's ID"
+								}
+							]
+						},
+						"description": "Updates an admin's profile or password by their ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Admin",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{superAdminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/super-admin/admins/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"super-admin",
+								"admins",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "2",
+									"description": "The admin user's ID to delete"
+								}
+							]
+						},
+						"description": "Soft-deletes/deactivates an admin user by setting is_active to false."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "superAdminToken",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

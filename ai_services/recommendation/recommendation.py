@@ -45,6 +45,7 @@ router = APIRouter()
 class RecommendationOut(BaseModel):
     id:               int
     category_id:      int
+    category_name:    Optional[str] = None
     pattern_detected: Optional[str]
     recommendation:   Optional[str]
     root_cause:       Optional[str]
