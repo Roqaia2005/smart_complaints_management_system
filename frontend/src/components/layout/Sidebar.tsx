@@ -71,7 +71,7 @@ export function Sidebar() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const { state } = useSidebar();
-  const [role, setrole] = useState('manager')
+  const [role, setrole] = useState('student')
 
   const filteredNavItems = navItems.filter(item =>
     item.roles.includes(role as WorkflowRole)
