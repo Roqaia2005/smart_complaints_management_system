@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+    getDashboardData,
     overviewController,
     departmentPerformanceController,
     heatmapController,
@@ -10,7 +11,7 @@ const {
 } = require('../controllers/manager.controllers');
 
 const managerRoutes = express.Router();
-
+managerRoutes.get('/dashboard', getDashboardData);
 managerRoutes.get('/overview', overviewController);
 managerRoutes.get('/department-performance', departmentPerformanceController);
 managerRoutes.get('/heatmap', heatmapController);

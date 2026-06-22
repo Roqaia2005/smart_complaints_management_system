@@ -1,4 +1,7 @@
+// استدعاء ملف السيرفس الموحد ودمج جميع الدوال الفعالة
 const {
+    
+    getManagerDashboardStats, // الدالة الجديدة للداشبورد والـ Slicer
     overviewService,
     departmentPerformanceService,
     heatmapService,
@@ -8,25 +11,56 @@ const {
     topIssuesService
 } = require('../services/manager.service');
 
-// 0. Overview
+// =========================================================
+// . Get Manager Dashboard Stats (مع الـ Slicer ديناميكياً)
+// =========================================================
+exports.getDashboardData = async (req, res) => {
+    try {
+        // لقط الـ category_id القادم من الـ Slicer في الفرونت إند (?category_id=3)
+        const { category_id } = req.query; 
+
+        // استدعاء الخدمة لحساب الإحصائيات الشاملة وأداء الموظفين
+        const dashboardStats = await getManagerDashboardStats(category_id);
+        
+        return res.status(200).json({
+            success: true,
+            message: "Manager dashboard data retrieved successfully",
+            data: dashboardStats
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: error.message
+        });
+    }
+};
+
+// =========================================================
+// 2. Overview
+// =========================================================
 exports.overviewController = async (req, res) => {
     try {
         const userId = req.user?.id;
         const { from } = req.query;
         const overviewData = await overviewService(userId, from);
         return res.status(200).json({
+            success: true,
             message: "kpis returned successfully",
             overviewData
         });
     } catch (error) {
         return res.status(500).json({
+            success: false,
             message: "there's an error",
             error: error.message
         });
     }
 };
 
-// 1. Department Performance
+// =========================================================
+// 3. Department Performance
+// =========================================================
 exports.departmentPerformanceController = async (req, res) => {
     try {
         const data = await departmentPerformanceService();
@@ -39,7 +73,9 @@ exports.departmentPerformanceController = async (req, res) => {
     }
 };
 
-// 2. Heatmap
+// =========================================================
+// 4. Heatmap
+// =========================================================
 exports.heatmapController = async (req, res) => {
     try {
         const { dimension } = req.query;
@@ -53,7 +89,9 @@ exports.heatmapController = async (req, res) => {
     }
 };
 
-// 3. AI Recommendations
+// =========================================================
+// 5. AI Recommendations
+// =========================================================
 exports.getRecommendationsController = async (req, res) => {
     try {
         const data = await getRecommendationsService();
@@ -66,7 +104,9 @@ exports.getRecommendationsController = async (req, res) => {
     }
 };
 
-// 4. Update Recommendation Status
+// =========================================================
+// 6. Update Recommendation Status
+// =========================================================
 exports.updateRecommendationStatusController = async (req, res) => {
     try {
         const { id } = req.params;
@@ -81,7 +121,9 @@ exports.updateRecommendationStatusController = async (req, res) => {
     }
 };
 
-// 5. Reports
+// =========================================================
+// 7. Reports
+// =========================================================
 exports.reportsController = async (req, res) => {
     try {
         const { from, to, category_id, status } = req.query;
@@ -95,7 +137,9 @@ exports.reportsController = async (req, res) => {
     }
 };
 
-// 6. Top Issues per Category
+// =========================================================
+// 8. Top Issues per Category
+// =========================================================
 exports.topIssuesController = async (req, res) => {
     try {
         const { category_id } = req.params;

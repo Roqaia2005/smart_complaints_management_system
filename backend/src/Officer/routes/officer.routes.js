@@ -1,18 +1,23 @@
 const express = require('express');
+const router = express.Router();
+
+// استدعاء الكنترولر الفعلي للأوفيسر المتوافق مع اسم ملفك
 const {
     getDepartmentComplaintsController,
     getComplaintDetailsController,
     updateComplaintStatusController,
     getAppealedComplaintsController,
-    markAppealReviewedController
-} = require('../controllers/officer.controller');
+    markAppealReviewedController,
+    getDashboard
+} = require('../controllers/officer.controller'); // 
 
-const officerRoutes = express.Router();
+// =========================================================
+// =========================================================
+router.get('/dashboard', getDashboard);
+router.get('/complaints', getDepartmentComplaintsController);
+router.get('/complaints/:id', getComplaintDetailsController);
+router.patch('/complaints/:id/status', updateComplaintStatusController);
+router.get('/appeals', getAppealedComplaintsController);
+router.patch('/appeals/:id/review', markAppealReviewedController);
 
-officerRoutes.get('/complaints', getDepartmentComplaintsController);
-officerRoutes.get('/complaints/:id', getComplaintDetailsController);
-officerRoutes.patch('/complaints/:id/status', updateComplaintStatusController);
-officerRoutes.get('/appeals', getAppealedComplaintsController);
-officerRoutes.patch('/appeals/:id/review', markAppealReviewedController);
-
-module.exports = officerRoutes;
+module.exports = router;
