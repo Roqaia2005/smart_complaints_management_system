@@ -12,8 +12,13 @@ const authRoutes = require("./Auth/routes/auth.routes");
 const superAdminRoutes = require('./SuperAdmin/routes/superAdmin.route');
 
 const app = express();
+//implement cors from cross domain
+const cors = require('cors');
 
 // Middlewares
+app.use(cors({
+    origin: "*",
+}));
 app.use(express.json());
 
 // Routes

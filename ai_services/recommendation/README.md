@@ -104,12 +104,12 @@ ALTER TABLE ai_recommendations
 ### 6. Start the server
 
 ```bash
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 5000
 ```
 
 You should see:
 ```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
 INFO:     Started reloader process
 ```
 
@@ -120,7 +120,7 @@ INFO:     Started reloader process
 Once the server is running, open your browser and go to:
 
 ```
-http://127.0.0.1:8000/docs
+http://127.0.0.1:5000/docs
 ```
 
 This opens the Swagger UI where you can test all endpoints interactively.

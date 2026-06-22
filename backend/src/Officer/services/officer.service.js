@@ -42,10 +42,21 @@ exports.getDepartmentComplaintsService = async (categoryId) => {
 // =========================================================
 exports.getComplaintDetailsService = async (complaintId) => {
     const complaint = await Complaint.findByPk(complaintId, {
-        include: [{
-            model: Category,
-            attributes: ['id', 'name']
-        }]
+        include: [
+            {
+                model: Category,
+                attributes: ['id', 'name']
+            },
+            {
+                model: Appeal
+            },
+            {
+                model: ComplaintHistory
+            }
+        ],
+        order: [
+            [ComplaintHistory, 'createdAt', 'ASC']
+        ]
     });
 
     if (!complaint) {

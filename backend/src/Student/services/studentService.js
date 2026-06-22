@@ -164,3 +164,11 @@ exports.createAppeal = async (complaintId, reason, userId) => {
         throw error;
     }
 };
+
+// 5. get active categories
+exports.getActiveCategories = async () => {
+    return await Category.findAll({
+        where: { is_active: true },
+        attributes: ['id', 'name', 'description', 'sla_hours']
+    });
+};
