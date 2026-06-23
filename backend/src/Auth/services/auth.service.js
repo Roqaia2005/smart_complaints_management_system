@@ -2,9 +2,17 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { Student, User, OtpToken, SystemSetting } = require("../../../models");
-const { jwt: jwtConfig, email: emailConfig } = require('../../../config/config');
-const { ROLES, STAFF_SIGNUP_ROLES } = require('../constants/roles');
-const { isEmailAllowed } = require('../helpers/emailDomain');
+const {
+  jwt: jwtConfig,
+  email: emailConfig,
+} = require("../../../config/config");
+const { ROLES, STAFF_SIGNUP_ROLES } = require("../constants/roles");
+const { isEmailAllowed } = require("../helpers/emailDomain");
+
+// ==================== Constants ====================
+
+const OTP_COOLDOWN_SECONDS = 60;
+const MAX_OTP_ATTEMPTS = 5;
 
 // ==================== Email Transporter ====================
 
@@ -40,7 +48,14 @@ const generateAuthResponse = (user) => {
   return {
     success: true,
     token,
-    user: { id: user.id, name: user.full_name, role: user.role },
+    user: {
+      id: user.id,
+      name: user.full_name,
+      role: user.role,
+      is_also_manager: user.is_also_manager || false,
+      officer_title: user.officer_title || null,
+      manager_title: user.manager_title || null,
+    },
   };
 };
 
@@ -50,7 +65,12 @@ const validatePassword = (password) => {
   }
 };
 
-const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOtpCode = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+const hashOtp = (otp_code) => bcrypt.hash(otp_code, 10);
+
+const verifyOtpHash = (otp_code, hash) => bcrypt.compare(otp_code, hash);
 
 const sendOtpEmail = async (to, otp_code, expirySeconds) => {
   const transporter = createTransporter();
@@ -67,6 +87,27 @@ const sendOtpEmail = async (to, otp_code, expirySeconds) => {
       </div>
     `,
   });
+};
+
+// Shared cooldown check - prevents spamming OTP requests for the same identifier
+const checkCooldown = async (whereClause) => {
+  const recentToken = await OtpToken.findOne({
+    where: whereClause,
+    order: [["createdAt", "DESC"]],
+  });
+
+  if (recentToken) {
+    const secondsSinceLastRequest =
+      (Date.now() - new Date(recentToken.createdAt).getTime()) / 1000;
+    if (secondsSinceLastRequest < OTP_COOLDOWN_SECONDS) {
+      const waitTime = Math.ceil(
+        OTP_COOLDOWN_SECONDS - secondsSinceLastRequest,
+      );
+      throw new Error(
+        `Please wait ${waitTime} seconds before requesting another OTP.`,
+      );
+    }
+  }
 };
 
 // =========================================================================
@@ -120,20 +161,28 @@ const sendOtp = async (student_number) => {
   const student = await Student.findOne({ where: { student_number } });
   if (!student) throw new Error("Student not found.");
 
-  const existingUser = await User.findOne({ where: { student_id: student.id } });
-  if (existingUser) throw new Error("This student already has an account. Please log in.");
+  const existingUser = await User.findOne({
+    where: { student_id: student.id },
+  });
+  if (existingUser)
+    throw new Error("This student already has an account. Please log in.");
+
+  await checkCooldown({ student_number });
 
   const expirySeconds = await getOtpExpirySeconds();
   const otp_code = generateOtpCode();
+  const otp_hash = await hashOtp(otp_code);
   const expires_at = new Date(Date.now() + expirySeconds * 1000);
 
   await OtpToken.destroy({ where: { student_number } });
 
   await OtpToken.create({
     student_number,
-    otp_code,
+    otp_hash,
+    purpose: "student_signup",
     expires_at,
     is_used: false,
+    attempts: 0,
   });
 
   await sendOtpEmail(student.email, otp_code, expirySeconds);
@@ -145,12 +194,23 @@ const sendOtp = async (student_number) => {
 
 const verifyOtp = async (student_number, otp_code) => {
   const otpRecord = await OtpToken.findOne({
-    where: { student_number, otp_code, is_used: false },
+    where: { student_number, purpose: "student_signup", is_used: false },
+    order: [["createdAt", "DESC"]],
   });
 
   if (!otpRecord) throw new Error("Invalid OTP.");
-
   if (new Date() > otpRecord.expires_at) throw new Error("OTP has expired.");
+
+  if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+    throw new Error("Too many incorrect attempts. Please request a new OTP.");
+  }
+
+  const isMatch = await verifyOtpHash(otp_code, otpRecord.otp_hash);
+
+  if (!isMatch) {
+    await otpRecord.increment("attempts");
+    throw new Error("Invalid OTP.");
+  }
 
   await otpRecord.update({ is_used: true });
 
@@ -165,13 +225,17 @@ const registerStudent = async (student_number, password) => {
   const student = await Student.findOne({ where: { student_number } });
   if (!student) throw new Error("Student not found.");
 
-  const existingUser = await User.findOne({ where: { student_id: student.id } });
+  const existingUser = await User.findOne({
+    where: { student_id: student.id },
+  });
   if (existingUser) throw new Error("Account already exists. Please log in.");
 
   const usedOtp = await OtpToken.findOne({
-    where: { student_number, is_used: true },
+    where: { student_number, purpose: "student_signup", is_used: true },
+    order: [["createdAt", "DESC"]],
   });
-  if (!usedOtp) throw new Error("OTP verification required before registration.");
+  if (!usedOtp)
+    throw new Error("OTP verification required before registration.");
 
   const password_hash = await hashPassword(password);
 
@@ -205,33 +269,44 @@ const sendStaffOtp = async (email, role) => {
 
   const emailDomain = await getEmailDomain();
   if (!isEmailAllowed(normalizedEmail, emailDomain)) {
-    throw new Error(`Email must use the configured university domain (${emailDomain}).`);
+    throw new Error(
+      `Email must use the configured university domain (${emailDomain}).`,
+    );
   }
 
   const user = await User.findOne({
-    where: { email: normalizedEmail, role }
+    where: { email: normalizedEmail, role },
   });
 
   if (!user) {
-    throw new Error("This email was not found. Please contact your administrator.");
+    throw new Error(
+      "This email was not found. Please contact your administrator.",
+    );
   }
 
   if (user.password_hash) {
     throw new Error("This account is already registered. Please log in.");
   }
 
+  await checkCooldown({ email: normalizedEmail, signup_role: role });
+
   const expirySeconds = await getOtpExpirySeconds();
   const otp_code = generateOtpCode();
+  const otp_hash = await hashOtp(otp_code);
   const expires_at = new Date(Date.now() + expirySeconds * 1000);
 
-  await OtpToken.destroy({ where: { email: normalizedEmail, signup_role: role } });
+  await OtpToken.destroy({
+    where: { email: normalizedEmail, signup_role: role },
+  });
 
   await OtpToken.create({
     email: normalizedEmail,
     signup_role: role,
-    otp_code,
+    purpose: "staff_signup",
+    otp_hash,
     expires_at,
     is_used: false,
+    attempts: 0,
   });
 
   await sendOtpEmail(normalizedEmail, otp_code, expirySeconds);
@@ -249,12 +324,28 @@ const verifyStaffOtp = async (email, otp_code, role) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   const otpRecord = await OtpToken.findOne({
-    where: { email: normalizedEmail, signup_role: role, otp_code, is_used: false },
+    where: {
+      email: normalizedEmail,
+      signup_role: role,
+      purpose: "staff_signup",
+      is_used: false,
+    },
+    order: [["createdAt", "DESC"]],
   });
 
   if (!otpRecord) throw new Error("Invalid OTP.");
-
   if (new Date() > otpRecord.expires_at) throw new Error("OTP has expired.");
+
+  if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+    throw new Error("Too many incorrect attempts. Please request a new OTP.");
+  }
+
+  const isMatch = await verifyOtpHash(otp_code, otpRecord.otp_hash);
+
+  if (!isMatch) {
+    await otpRecord.increment("attempts");
+    throw new Error("Invalid OTP.");
+  }
 
   await otpRecord.update({ is_used: true });
 
@@ -273,11 +364,13 @@ const registerStaff = async (email, password, role) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   const user = await User.findOne({
-    where: { email: normalizedEmail, role }
+    where: { email: normalizedEmail, role },
   });
 
   if (!user) {
-    throw new Error("This email was not found. Please contact your administrator.");
+    throw new Error(
+      "This email was not found. Please contact your administrator.",
+    );
   }
 
   if (user.password_hash) {
@@ -285,7 +378,13 @@ const registerStaff = async (email, password, role) => {
   }
 
   const usedOtp = await OtpToken.findOne({
-    where: { email: normalizedEmail, signup_role: role, is_used: true },
+    where: {
+      email: normalizedEmail,
+      signup_role: role,
+      purpose: "staff_signup",
+      is_used: true,
+    },
+    order: [["createdAt", "DESC"]],
   });
 
   if (!usedOtp) {
@@ -296,7 +395,7 @@ const registerStaff = async (email, password, role) => {
 
   await user.update({
     password_hash,
-    is_active: true
+    is_active: true,
   });
 
   return generateAuthResponse(user);
@@ -311,15 +410,94 @@ const registerManager = (email, password) =>
 const sendOfficerOtp = (email) => sendStaffOtp(email, ROLES.OFFICER);
 const sendManagerOtp = (email) => sendStaffOtp(email, ROLES.MANAGER);
 
-const verifyOfficerOtp = (email, otp_code) => verifyStaffOtp(email, otp_code, ROLES.OFFICER);
-const verifyManagerOtp = (email, otp_code) => verifyStaffOtp(email, otp_code, ROLES.MANAGER);
+const verifyOfficerOtp = (email, otp_code) =>
+  verifyStaffOtp(email, otp_code, ROLES.OFFICER);
+const verifyManagerOtp = (email, otp_code) =>
+  verifyStaffOtp(email, otp_code, ROLES.MANAGER);
+
+// =========================================================================
+// PASSWORD RESET (shared by all roles that already have an account)
+// =========================================================================
+
+const forgotPassword = async (email) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ where: { email: normalizedEmail } });
+
+  // Always return the same message whether or not the account exists -
+  // prevents using this endpoint to discover valid student/staff emails.
+  const genericResponse = {
+    success: true,
+    message: "If this account exists, a reset code has been sent.",
+  };
+
+  if (!user || !user.password_hash) {
+    return genericResponse;
+  }
+
+  await checkCooldown({ email: normalizedEmail, purpose: "password_reset" });
+
+  const expirySeconds = await getOtpExpirySeconds();
+  const otp_code = generateOtpCode();
+  const otp_hash = await hashOtp(otp_code);
+  const expires_at = new Date(Date.now() + expirySeconds * 1000);
+
+  await OtpToken.destroy({
+    where: { email: normalizedEmail, purpose: "password_reset" },
+  });
+
+  await OtpToken.create({
+    email: normalizedEmail,
+    purpose: "password_reset",
+    otp_hash,
+    expires_at,
+    is_used: false,
+    attempts: 0,
+  });
+
+  await sendOtpEmail(normalizedEmail, otp_code, expirySeconds);
+
+  return genericResponse;
+};
+
+const resetPassword = async (email, otp_code, new_password) => {
+  validatePassword(new_password);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const otpRecord = await OtpToken.findOne({
+    where: {
+      email: normalizedEmail,
+      purpose: "password_reset",
+      is_used: false,
+    },
+    order: [["createdAt", "DESC"]],
+  });
+
+  if (!otpRecord) throw new Error("Invalid or expired code.");
+  if (new Date() > otpRecord.expires_at) throw new Error("Code has expired.");
+  if (otpRecord.attempts >= MAX_OTP_ATTEMPTS)
+    throw new Error("Too many attempts. Please request a new code.");
+
+  const isMatch = await verifyOtpHash(otp_code, otpRecord.otp_hash);
+
+  if (!isMatch) {
+    await otpRecord.increment("attempts");
+    throw new Error("Invalid code.");
+  }
+
+  await otpRecord.update({ is_used: true });
+
+  const user = await User.findOne({ where: { email: normalizedEmail } });
+  const password_hash = await hashPassword(new_password);
+  await user.update({ password_hash });
+
+  return { success: true, message: "Password reset successfully." };
+};
 
 // =========================================================================
 // LOGIN (shared by all roles: student, officer, manager, admin, super_admin)
 // =========================================================================
 
 const login = async (email, password) => {
-
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ where: { email: normalizedEmail } });
 
@@ -339,7 +517,9 @@ const login = async (email, password) => {
   }
 
   if (!user.is_active) {
-    throw new Error("Your account has been deactivated. Please contact your administrator.");
+    throw new Error(
+      "Your account has been deactivated. Please contact your administrator.",
+    );
   }
 
   return generateAuthResponse(user);
@@ -362,6 +542,9 @@ module.exports = {
   sendManagerOtp,
   verifyOfficerOtp,
   verifyManagerOtp,
+  // password reset
+  forgotPassword,
+  resetPassword,
   // shared
   login,
 };

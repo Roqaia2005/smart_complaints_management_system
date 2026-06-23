@@ -1,4 +1,3 @@
-
 module.exports = {
   development: {
     username: "postgres.whfliaxwyxgweiygziev",
@@ -11,12 +10,12 @@ module.exports = {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false
-      }
-    }
+        rejectUnauthorized: false,
+      },
+    },
   },
   jwt: {
-    secret: process.env.JWT_SECRET ,
+    secret: process.env.JWT_SECRET || "#2nsnjajn123$$",
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   },
   otp: {
@@ -27,5 +26,8 @@ module.exports = {
     port: parseInt(process.env.MAIL_PORT) || 587,
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
+  },
+  pythonService: {
+    baseUrl: process.env.PYTHON_SERVICE_URL || "http://localhost:5000",
   },
 };

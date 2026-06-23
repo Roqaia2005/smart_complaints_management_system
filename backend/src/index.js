@@ -27,6 +27,11 @@ app.use("/api/super-admin", superAdminRoutes);
 // Port
 const PORT = process.env.PORT || 3000;
 
+const bcrypt = require("bcryptjs");
+bcrypt
+  .hash("nouraan2004", 10)
+  .then((hash) => console.log("MY TEST HASH:", hash));
+
 db.sequelize.authenticate()
     .then(() => {
         console.log('✅ Database Connected');
