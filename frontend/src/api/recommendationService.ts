@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { Recommendation } from '@/types/recommendation';
 
-const RECOMMENDATION_API_URL = import.meta.env.VITE_RECOMMENDATION_API_URL || 'http://127.0.0.1:8000';
+const RECOMMENDATION_API_URL = import.meta.env.VITE_RECOMMENDATION_API_URL || 'http://127.0.0.1:5000';
 
 const api = axios.create({
   baseURL: RECOMMENDATION_API_URL,

@@ -1,187 +1,113 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Skeleton } from '../../components/ui/skeleton';
-import { Input } from '../../components/ui/input';
 import {
-  Download, Filter, FileText, Calendar, Building,
-  CheckCircle2, AlertCircle, Search, ChevronDown
+  Download,
+  Filter,
+  FileText,
+  Calendar,
+  Building,
+  CheckCircle2,
+  AlertCircle,
+  Search,
+  MoreVertical
 } from 'lucide-react';
-import { managerApi } from '../../api/services';
-import { adminApi } from '../../api/services';
-import type { Complaint, Category } from '../../types/api';
-import { cn } from '../../lib/utils';
-
-const STATUS_OPTIONS = ['', 'pending', 'in_progress', 'resolved', 'appealed'];
+import { Input } from '../../components/ui/input';
+import { Badge } from '../../components/ui/badge';
 
 export default function ManagerReports() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  // Filters
-  const [from, setFrom]             = useState('');
-  const [to, setTo]                 = useState('');
-  const [status, setStatus]         = useState('');
-  const [categoryId, setCategoryId] = useState('');
-
-  const fetchReports = () => {
-    setLoading(true);
-    setError(null);
-    managerApi.getReports({
-      from: from || undefined,
-      to: to || undefined,
-      status: status || undefined,
-      category_id: categoryId ? Number(categoryId) : undefined,
-    })
-      .then(res => {
-        setComplaints(res.data.complaints ?? []);
-        setTotal(res.data.total_count ?? 0);
-      })
-      .catch(err => setError(err.message || 'Failed to load reports'))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    // Load categories for filter dropdown
-    adminApi.getCategories()
-      .then(res => setCategories(res.data.categories ?? []))
-      .catch(() => {});
-    fetchReports();
-  }, []);
-
-  const statusColor: Record<string, string> = {
-    pending:     'bg-amber-500/15 text-amber-600',
-    in_progress: 'bg-blue-500/15 text-blue-600',
-    resolved:    'bg-emerald-500/15 text-emerald-600',
-    appealed:    'bg-orange-500/15 text-orange-600',
-  };
+  const reports = [
+    { id: 'R-402', name: 'Q1 Infrastructure Efficiency', date: '2024-04-15', status: 'ready', department: 'Facilities' },
+    { id: 'R-401', name: 'Student Satisfaction Survey', date: '2024-04-10', status: 'ready', department: 'Academic' },
+    { id: 'R-398', name: 'IT Response Time Audit', date: '2024-04-02', status: 'ready', department: 'IT' },
+    { id: 'R-395', name: 'Monthly Escalation Summary', date: '2024-03-28', status: 'ready', department: 'All' },
+  ];
 
   return (
     <div className="space-y-8 animate-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Complaints Report</h1>
-          <p className="text-slate-500 font-medium">Filter and analyze complaint data across all departments</p>
+          <h1 className="text-3xl font-bold">Generated Reports</h1>
+          <p className="text-slate-500 font-medium">Export and analyze historical complaint data</p>
         </div>
-        <Badge variant="outline" className="h-9 px-4 text-sm font-bold self-start md:self-auto">
-          {total} total results
-        </Badge>
+        <Button className="gap-2 bg-blue-600 hover:bg-blue-700 font-bold h-11 px-6 shadow-lg shadow-blue-500/20">
+          <FileText size={18} /> Generate New Report
+        </Button>
       </div>
 
-      {/* Filters */}
       <Card className="border-none shadow-sm">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Calendar size={12} /> From
+        <CardContent className="p-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Calendar size={14} /> Date Range
               </label>
-              <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-10" />
+              <Button variant="outline" className="w-full justify-between h-11 border-slate-200 dark:border-slate-800">
+                Last 30 Days <Filter size={16} />
+              </Button>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Calendar size={12} /> To
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Building size={14} /> Department
               </label>
-              <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-10" />
+              <Button variant="outline" className="w-full justify-between h-11 border-slate-200 dark:border-slate-800">
+                All Departments <Filter size={16} />
+              </Button>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Building size={12} /> Category
-              </label>
-              <select
-                value={categoryId}
-                onChange={e => setCategoryId(e.target.value)}
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Categories</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Filter size={12} /> Status
-              </label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {STATUS_OPTIONS.map(s => (
-                  <option key={s} value={s}>{s ? s.replace('_', ' ') : 'All Status'}</option>
-                ))}
-              </select>
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                <Input placeholder="Search reports by name or ID..." className="pl-10 h-11" />
+              </div>
             </div>
           </div>
-          <Button onClick={fetchReports} className="gap-2 bg-blue-600 hover:bg-blue-700 font-bold">
-            <Search size={16} /> Apply Filters
-          </Button>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30">
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Report ID</th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Report Name</th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created Date</th>
+                  <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="p-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y dark:divide-slate-800">
+                {reports.map((report) => (
+                  <tr key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                    <td className="p-4 font-mono text-sm text-slate-500 font-bold">{report.id}</td>
+                    <td className="p-4">
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{report.name}</p>
+                    </td>
+                    <td className="p-4">
+                      <Badge variant="secondary" className="font-bold">{report.department}</Badge>
+                    </td>
+                    <td className="p-4 text-xs font-medium text-slate-500">{report.date}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <CheckCircle2 size={16} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Ready</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" className="font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                          <Download size={16} className="mr-2" /> Export
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                          <MoreVertical size={16} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
-      </Card>
-
-      {/* Error */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
-          <AlertCircle className="text-rose-600" size={18} />
-          <p className="text-rose-700 font-medium text-sm">{error}</p>
-        </div>
-      )}
-
-      {/* Table */}
-      <Card className="border-none shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30">
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID</th>
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Problem</th>
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</th>
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</th>
-                <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Submitted</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y dark:divide-slate-800">
-              {loading
-                ? [1,2,3,4,5].map(i => (
-                  <tr key={i}><td colSpan={6} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
-                ))
-                : complaints.length === 0
-                  ? (
-                    <tr>
-                      <td colSpan={6} className="p-12 text-center text-slate-400">
-                        <FileText size={40} className="mx-auto mb-3 text-slate-300" />
-                        <p className="font-medium">No complaints match the selected filters.</p>
-                      </td>
-                    </tr>
-                  )
-                  : complaints.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="p-4 font-mono text-sm font-bold text-slate-500">#{c.id}</td>
-                      <td className="p-4 max-w-xs">
-                        <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{c.problem}</p>
-                      </td>
-                      <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{c.Category?.name ?? '—'}</td>
-                      <td className="p-4">
-                        <Badge className={cn("font-bold text-[10px] uppercase tracking-wider", statusColor[c.status] ?? '')}>
-                          {c.status.replace('_', ' ')}
-                        </Badge>
-                      </td>
-                      <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400">{c.priority ?? '—'}</td>
-                      <td className="p-4 text-xs font-medium text-slate-500">
-                        {new Date(c.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-              }
-            </tbody>
-          </table>
-        </div>
       </Card>
     </div>
   );

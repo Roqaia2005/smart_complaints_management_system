@@ -29,11 +29,12 @@ export interface Complaint {
   location?: string;
   ai_summary?: string;
   priority?: number;
+  student_name?: string;
   status: 'pending' | 'in_progress' | 'resolved' | 'appealed';
   resolution_text?: string;
   resolved_at?: string;
-  createdAt: string;
-  updatedAt?: string;
+  created_at: string;
+  updated_at?: string;
   Category?: { id: number; name: string };
   User?: {
     full_name?: string;

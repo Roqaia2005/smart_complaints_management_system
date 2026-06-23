@@ -12,7 +12,7 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       user: {
-        id: 'dev-mock-1',
+        id: '1',
         name: 'Demo User',
         email: 'demo@uniresolve.app',
         role: 'student'

@@ -31,10 +31,16 @@ export const studentApi = {
 
   submitAppeal: (id: number | string, reason: string, user_id: number) =>
     backendApi.post(`/complaints/${id}/appeal`, { reason, user_id }),
+
+  getCategories: () =>
+    backendApi.get('/complaints/categories'),
 };
 
 // ── Officer ───────────────────────────────────────────────────────────────
 export const officerApi = {
+  getDashboard: (category_id?: number | string, officer_id?: number) =>
+    backendApi.get('/officer/dashboard', { params: { category_id, officer_id } }),
+
   getComplaints: (category_id: number) =>
     backendApi.get('/officer/complaints', { params: { category_id } }),
 

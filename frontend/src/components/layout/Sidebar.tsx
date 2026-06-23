@@ -71,10 +71,12 @@ export function Sidebar() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const { state } = useSidebar();
-  const [role, setrole] = useState('manager')
+  const [role, setrole] = useState('officer')
 
   const filteredNavItems = navItems.filter(item =>
     item.roles.includes(role as WorkflowRole)
+        //item.roles.includes((user?.role || 'student') as WorkflowRole)
+
   );
   return (
     <SidebarUI className="border-r border-sidebar-border bg-sidebar">
