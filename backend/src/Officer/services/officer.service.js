@@ -41,28 +41,19 @@ exports.getDepartmentComplaintsService = async (categoryId) => {
 // 2. Get Complaint Details (with student info)
 // =========================================================
 exports.getComplaintDetailsService = async (complaintId) => {
+    // جلب الشكوى مع تحديد القسم فقط وتجنب سحب الهيستوري اللي بيبوظ الدنيا
     const complaint = await Complaint.findByPk(complaintId, {
-        include: [
-            {
-                model: Category,
-                attributes: ['id', 'name']
-            },
-            {
-                model: Appeal
-            },
-            {
-                model: ComplaintHistory
-            }
-        ],
-        order: [
-            [ComplaintHistory, 'createdAt', 'ASC']
-        ]
+        include: [{
+            model: Category,
+            attributes: ['id', 'name']
+        }]
     });
 
     if (!complaint) {
         throw new Error('Complaint not found');
     }
 
+    // جلب بيانات المستخدم والطالب بشكل منفصل وآمن تماماً
     const user = await User.findByPk(complaint.user_id, {
         include: [{
             model: Student
