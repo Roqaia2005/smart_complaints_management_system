@@ -9,6 +9,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from recommendation import router as recommendation_router
+from dss_routes import router as dss_router
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(recommendation_router)
+app.include_router(dss_router)
 
 @app.on_event("startup")
 def startup():

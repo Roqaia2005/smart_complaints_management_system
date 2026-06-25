@@ -27,6 +27,11 @@ from dotenv import load_dotenv
 from database import get_db
 from models import AiRecommendation
 from translation import translate_to_english
+from dss_analytics import (
+    apply_analytical_root_cause,
+    build_category_insights,
+    format_rca_for_prompt,
+)
 
 load_dotenv()
 
@@ -205,17 +210,23 @@ def get_sample_texts(group_df: pd.DataFrame, n: int = 5) -> list:
 # ─────────────────────────────────────────────
 
 SYSTEM_PROMPT = (
-    "You are an expert complaints analyst for a university student complaints system. "
-    "Produce professional, actionable recommendations for university management. "
+    "You are a Decision Support analyst for a university student complaints system. "
+    "An analytical engine has already computed the facts — your role is to explain findings "
+    "and produce professional, actionable recommendations. Do NOT invent data or contradict "
+    "the provided analytical findings. "
     "Always respond with ONLY valid JSON — no markdown, no explanation, no preamble."
 )
 
 RECOMMENDATION_TEMPLATE = """
-You are analyzing student complaints for a university management system.
-Below is structured data about a recurring complaint pattern.
-Your job is to identify the root cause and write ONE clear, actionable recommendation.
+You are a Decision Support analyst for a university student complaints system.
+An analytical engine has already processed the complaint data below.
+Your job is to EXPLAIN the findings and write ONE clear, actionable recommendation.
 
-=== PATTERN DATA ===
+IMPORTANT: Do NOT invent facts. Base your analysis ONLY on the data provided below.
+If a data-confirmed root cause is listed, use it — do not substitute your own.
+Focus on recommending concrete management actions.
+
+=== STATISTICAL SUMMARY ===
 Category:              {category_name}
 Location:              {location}
 Total complaints:      {complaint_count} (last 180 days)
@@ -225,17 +236,19 @@ High-priority rate:    {high_priority_pct}%
 Peak complaint day:    {peak_day}
 Peak complaint month:  {peak_month}
 
-=== RECURRING THEMES (extracted keywords) ===
+{analytical_findings}
+
+=== RECURRING THEMES (TF-IDF keywords) ===
 {keywords}
 
-=== SAMPLE COMPLAINTS ===
+=== REPRESENTATIVE COMPLAINTS ===
 {sample_texts}
 
 === INSTRUCTIONS ===
-- pattern_detected: one sentence describing what pattern you see in the data
-- root_cause: one sentence on the most likely underlying reason
-- recommendation: one specific action management should take (be concrete, not generic)
-- urgency: high if appeal_rate > 20% or high_priority_rate > 40%, otherwise medium or low
+- pattern_detected: one sentence summarizing the detected complaint pattern from the data above
+- root_cause: use the data-confirmed root cause if provided; otherwise state the most likely reason based ONLY on the analytical findings
+- recommendation: one specific, actionable step management should take (be concrete, not generic)
+- urgency: use the risk level and metrics — high if risk is High, appeal_rate > 20%, or high_priority_rate > 40%
 - estimated_impact: one sentence on the expected outcome if the recommendation is followed
 
 Respond ONLY with this JSON, no extra text:
@@ -327,6 +340,15 @@ def run_recommendation_pipeline(db: Session) -> list:
         logger.warning("No groups with 5+ complaints found.")
         return []
 
+    # DSS analytical layer — root cause analysis & risk scoring (data-driven, pre-LLM)
+    keywords_by_category: dict[int, list] = {}
+    for _, row in stats_df.iterrows():
+        cat_id = int(row["category_id"])
+        mask = df["category_id"] == cat_id
+        keywords_by_category[cat_id] = extract_keywords(df[mask]["problem"].tolist())
+
+    category_insights = build_category_insights(df, stats_df, keywords_by_category)
+
     results = []
 
     for _, row in stats_df.iterrows():
@@ -343,29 +365,37 @@ def run_recommendation_pipeline(db: Session) -> list:
         # Get all complaints for this category
         mask         = df["category_id"] == cat_id
         group_df     = df[mask]
-        keywords     = extract_keywords(group_df["problem"].tolist())
+        keywords     = keywords_by_category.get(cat_id) or extract_keywords(group_df["problem"].tolist())
         sample_texts = get_sample_texts(group_df)
 
-        # Build prompt
+        # DSS insights for this category
+        insight = category_insights.get(cat_id, {})
+        rca     = insight.get("root_cause_analysis", {})
+        risk    = insight.get("risk", {})
+        stats   = insight.get("stats", row.to_dict())
+
+        analytical_findings = format_rca_for_prompt(rca, risk, stats)
+
+        # Build prompt with analytical findings
         prompt = RECOMMENDATION_TEMPLATE.format(
-            category_name    = row["category_name"],
-            location         = f"Most reported at: {location}",
-            complaint_count  = int(row["complaint_count"]),
-            avg_res_hours    = row["avg_res_hours"],
-            appeal_rate_pct  = row["appeal_rate_pct"],
-            high_priority_pct= row["high_priority_pct"],
-            peak_day         = row["peak_day"],
-            peak_month       = row["peak_month"],
-            keywords         = ", ".join(keywords) if keywords else "N/A",
-            sample_texts     = "\n".join(f"- {t}" for t in sample_texts) if sample_texts else "N/A",
+            category_name     = row["category_name"],
+            location          = f"Most reported at: {location}",
+            complaint_count   = int(row["complaint_count"]),
+            avg_res_hours     = row["avg_res_hours"],
+            appeal_rate_pct   = row["appeal_rate_pct"],
+            high_priority_pct = row["high_priority_pct"],
+            peak_day          = row["peak_day"],
+            peak_month        = row["peak_month"],
+            analytical_findings = analytical_findings,
+            keywords          = ", ".join(keywords) if keywords else "N/A",
+            sample_texts      = "\n".join(f"- {t}" for t in sample_texts) if sample_texts else "N/A",
         )
 
-        # Call Groq
+        # Call Groq — LLM explains findings and recommends; analytics supply the facts
         try:
             groq_result = call_groq(prompt)
-
-            logger.info("Groq result: %s", groq_result)  # add this line
-            logger.info("Groq responded for category=%s", cat_id)
+            groq_result = apply_analytical_root_cause(groq_result, rca)
+            logger.info("Groq responded for category=%s (risk=%s)", cat_id, risk.get("risk_level"))
         except Exception as exc:
             logger.error("Groq failed for cat=%s: %s", cat_id, exc)
             continue

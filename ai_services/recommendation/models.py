@@ -140,3 +140,5 @@ class AnalysisReport(Base):
     updatedAt    = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     category     = relationship("Category", back_populates="analysis_reports")
+
+
