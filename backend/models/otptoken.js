@@ -13,20 +13,30 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   }
-  OtpToken.init({
-    student_number: DataTypes.STRING,
-    email: DataTypes.STRING,
-    signup_role: DataTypes.ENUM('officer', 'manager'),
-    otp_code: DataTypes.STRING,
-    expires_at: DataTypes.DATE,
-    is_used: DataTypes.BOOLEAN
-  }, {
-  sequelize,
-  modelName: 'OtpToken',
-  tableName: 'OtpTokens',
-  freezeTableName: true,
-  timestamps: true,
-  underscored: false
-  });
+  OtpToken.init(
+    {
+      student_number: DataTypes.STRING,
+      email: DataTypes.STRING,
+      signup_role: DataTypes.ENUM("officer", "manager"),
+      purpose: DataTypes.ENUM(
+        "student_signup",
+        "staff_signup",
+        "password_reset",
+      ),
+      otp_hash: DataTypes.STRING,
+      attempts: DataTypes.INTEGER,
+      expires_at: DataTypes.DATE,
+      is_used: DataTypes.BOOLEAN,
+    },
+    {
+      sequelize,
+      modelName: "OtpToken",
+      tableName: "OtpTokens",
+      freezeTableName: true,
+      timestamps: true,
+      underscored: false,
+    },
+  );
+
   return OtpToken;
 };

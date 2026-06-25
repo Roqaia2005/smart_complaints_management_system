@@ -7,7 +7,15 @@ const authorize = (...allowedRoles) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    
+    const hasDirectRole = allowedRoles.includes(req.user.role);
+    // An officer flagged as also-manager passes any check that allows 'manager'
+    const hasManagerOverride =
+      allowedRoles.includes("manager") &&
+      req.user.role === "officer" &&
+      req.user.is_also_manager === true;
+
+    if (!hasDirectRole && !hasManagerOverride) {
       return res.status(403).json({
         success: false,
         message: "Access denied. Insufficient permissions.",

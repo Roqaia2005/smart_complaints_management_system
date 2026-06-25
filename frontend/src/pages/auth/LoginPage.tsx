@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     // Simulate API call
     setTimeout(() => {
-      
+
 
       setIsLoading(false);
       navigate('/');

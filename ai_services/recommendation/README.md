@@ -1,6 +1,6 @@
 # Frontend Integration Guide — AI Recommendation & DSS Service
 
-> **Audience:** Frontend developers working on the Manager dashboard and analytics pages.  
+> **Audience:** Frontend developers working on the Manager dashboard and analytics pages.
 > **Service:** Python FastAPI on port `8000` — the same service you already call for recommendations.
 
 ---
@@ -720,11 +720,59 @@ cd ai_services/recommendation
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
+<<<<<<< HEAD
 # Copy .env.example → .env, set DATABASE_URL and GROQ_API_KEY
 uvicorn main:app --reload --port 8000
 ```
 
 Then start the frontend (`npm run dev`) and ensure `VITE_RECOMMENDATION_API_URL=http://127.0.0.1:8000`.
+=======
+```
+
+### 4. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in your values:
+
+```
+DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/complaints_db
+GROQ_API_KEY=gsk_your_actual_groq_api_key_here
+RECOMMENDATION_CACHE_HOURS=24
+```
+
+> ⚠️ Never commit `.env` to GitHub. It contains your API key and database password.
+
+### 5. Run the database migration
+
+Make sure the `ai_recommendations` table has all required columns. Run this in MySQL Workbench:
+
+```sql
+ALTER TABLE ai_recommendations
+    ADD COLUMN IF NOT EXISTS root_cause       TEXT         NULL,
+    ADD COLUMN IF NOT EXISTS urgency          ENUM('high','medium','low') NULL,
+    ADD COLUMN IF NOT EXISTS estimated_impact TEXT         NULL,
+    ADD COLUMN IF NOT EXISTS location         VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS complaint_count  INT          NULL,
+    ADD COLUMN IF NOT EXISTS avg_resolution_h INT          NULL,
+    ADD COLUMN IF NOT EXISTS appeal_rate_pct  INT          NULL,
+    ADD COLUMN IF NOT EXISTS top_keywords     VARCHAR(512) NULL,
+    ADD COLUMN IF NOT EXISTS generated_at     DATETIME     NULL;
+```
+
+### 6. Start the server
+
+```bash
+uvicorn main:app --reload --port 5000
+```
+
+You should see:
+```
+INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+INFO:     Started reloader process
+
 
 ---
 
@@ -737,7 +785,44 @@ Then start the frontend (`npm run dev`) and ensure `VITE_RECOMMENDATION_API_URL=
 - [ ] `GET http://127.0.0.1:8000/api/manager/recommendations` → existing recommendations still work
 - [ ] `POST http://127.0.0.1:8000/api/chat/recommendations` → still generates (slow)
 
+<<<<<<< HEAD
 Use Swagger at `/docs` to try all endpoints interactively.
+=======
+```
+http://127.0.0.1:5000/docs
+```
+
+This opens the Swagger UI where you can test all endpoints interactively.
+
+### Available Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/chat/recommendations` | Run the full pipeline and generate recommendations |
+| `GET`  | `/api/manager/recommendations` | List all stored recommendations |
+| `GET`  | `/api/manager/recommendations?status=pending` | Filter by status |
+| `GET`  | `/api/manager/recommendations?category_id=9` | Filter by category |
+| `PATCH`| `/api/manager/recommendations/{id}` | Mark as implemented or ignored |
+| `GET`  | `/` | Health check |
+
+### Quick Test
+
+**Step 1** — Generate recommendations:
+```
+POST /api/chat/recommendations
+```
+Click Execute. This runs the full pipeline.
+
+**Step 2** — View saved recommendations:
+```
+GET /api/manager/recommendations
+```
+
+**Step 3** — Mark one as implemented (replace 1 with actual id):
+```
+PATCH /api/manager/recommendations/1
+Body: { "status": "implemented" }
+
 
 ---
 

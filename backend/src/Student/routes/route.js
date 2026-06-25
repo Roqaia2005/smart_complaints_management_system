@@ -18,6 +18,12 @@ router.get(
     controller.getMyComplaints
 );
 
+// 5. عرض التصنيفات
+router.get(
+    '/categories',
+    controller.getCategories
+);
+
 // 3. تفاصيل شكوى
 router.get(
     '/:id',

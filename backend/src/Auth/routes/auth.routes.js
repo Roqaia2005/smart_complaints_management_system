@@ -1,23 +1,35 @@
 const express = require("express");
-const router = express.Router();
-const controller = require("../controllers/auth.controller");
+const {
+  checkStudent,
+  sendOtp,
+  verifyOtp,
+  registerStudent,
+  sendStaffOtp,
+  verifyStaffOtp,
+  registerStaff,
+  forgotPassword,
+  resetPassword,
+  login,
+} = require("../controllers/auth.controller");
 
-// Student signup (self-service, active immediately — must exist in Students table + OTP)
-router.post("/check-student", controller.checkStudent);
-router.post("/send-otp", controller.sendOtp);
-router.post("/verify-otp", controller.verifyOtp);
-router.post("/register", controller.registerStudent);
+const authRoutes = express.Router();
 
-// Officer signup (pending admin approval before login)
-router.post("/officer/send-otp", controller.sendOfficerOtp);
-router.post("/officer/verify-otp", controller.verifyOfficerOtp);
-router.post("/register/officer", controller.registerOfficer);
+// Student flow
+authRoutes.post("/check-student", checkStudent);
+authRoutes.post("/send-otp", sendOtp);
+authRoutes.post("/verify-otp", verifyOtp);
+authRoutes.post("/register", registerStudent);
 
-// Manager signup (pending admin approval before login)
-router.post("/manager/send-otp", controller.sendManagerOtp);
-router.post("/manager/verify-otp", controller.verifyManagerOtp);
-router.post("/register/manager", controller.registerManager);
+// Staff flow (Officer / Manager) — unified, role in body
+authRoutes.post("/staff/send-otp", sendStaffOtp);
+authRoutes.post("/staff/verify-otp", verifyStaffOtp);
+authRoutes.post("/staff/register", registerStaff);
 
-router.post("/login", controller.login);
+// Password reset — shared by all roles that already have an account
+authRoutes.post("/forgot-password", forgotPassword);
+authRoutes.post("/reset-password", resetPassword);
 
-module.exports = router;
+// Shared
+authRoutes.post("/login", login);
+
+module.exports = authRoutes;

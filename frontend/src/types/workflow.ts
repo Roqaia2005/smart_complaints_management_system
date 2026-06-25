@@ -43,6 +43,7 @@ export interface ChatMessage {
   content: string;
   type?: 'text' | 'card' | 'follow_up';
   data?: any; // For cards or follow-up questions
+  attachment?: { name: string; url?: string };
   timestamp: string;
 }
 export type RequestStatus = ComplaintStatus;

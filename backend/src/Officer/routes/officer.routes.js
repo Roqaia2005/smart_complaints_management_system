@@ -1,18 +1,20 @@
 const express = require('express');
+const router = express.Router();
+
 const {
     getDepartmentComplaintsController,
     getComplaintDetailsController,
     updateComplaintStatusController,
     getAppealedComplaintsController,
-    markAppealReviewedController
-} = require('../controllers/officer.controller');
+    markAppealReviewedController,
+    getDashboard
+} = require('../controllers/officer.controller'); 
 
-const officerRoutes = express.Router();
+router.get('/dashboard', getDashboard);
+router.get('/complaints/details/:id', getComplaintDetailsController); 
+router.get('/complaints', getDepartmentComplaintsController);
+router.patch('/complaints/:id/status', updateComplaintStatusController);
+router.get('/appeals', getAppealedComplaintsController);
+router.patch('/appeals/:id/review', markAppealReviewedController);
 
-officerRoutes.get('/complaints', getDepartmentComplaintsController);
-officerRoutes.get('/complaints/:id', getComplaintDetailsController);
-officerRoutes.patch('/complaints/:id/status', updateComplaintStatusController);
-officerRoutes.get('/appeals', getAppealedComplaintsController);
-officerRoutes.patch('/appeals/:id/review', markAppealReviewedController);
-
-module.exports = officerRoutes;
+module.exports = router;

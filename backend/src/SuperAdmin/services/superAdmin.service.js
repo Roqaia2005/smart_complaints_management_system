@@ -1,63 +1,112 @@
-const { User, SystemSetting } = require("../../../models");
-const bcrypt = require("bcryptjs");
+const { User, Faculty, University } = require("../../../models");
 
-// ==================== System Settings ====================
-
-const getSystemSettings = async () => {
-  const settings = await SystemSetting.findOne();
-  if (!settings) throw new Error("No system settings found.");
-  return settings;
-};
-
-const upsertSystemSettings = async (data) => {
-  const settings = await SystemSetting.findOne();
-
-  if (settings) {
-    await settings.update(data);
-    return settings;
-  }
-
-  return await SystemSetting.create(data);
-};
-
-// ==================== Admin Management ====================
+// ==================== Get All Admins (approved + pending) ====================
 
 const getAllAdmins = async () => {
   return await User.findAll({
     where: { role: "admin" },
-    attributes: ["id", "full_name", "email", "role", "is_active", "createdAt"],
+    attributes: ["id", "full_name", "email", "is_active", "faculty_id", "createdAt"],
+    include: [
+      {
+        model: Faculty,
+        attributes: ["id", "name", "email_domain"],
+        include: [{ model: University, attributes: ["id", "name"] }],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
   });
 };
 
-const createAdmin = async ({ full_name, email, password }) => {
-  const existing = await User.findOne({ where: { email } });
-  if (existing) throw new Error("Email already exists.");
+// ==================== Get Pending Admins Only ====================
 
-  const password_hash = await bcrypt.hash(password, 10);
-
-  const admin = await User.create({
-    full_name,
-    email,
-    password_hash,
-    role: "admin",
-    is_active: true,
+const getPendingAdmins = async () => {
+  return await User.findAll({
+    where: { role: "admin", is_active: false },
+    attributes: ["id", "full_name", "email", "faculty_id", "createdAt"],
+    include: [
+      {
+        model: Faculty,
+        attributes: ["id", "name", "email_domain"],
+        include: [{ model: University, attributes: ["id", "name"] }],
+      },
+    ],
+    order: [["createdAt", "ASC"]],
   });
-
-  return { user_id: admin.id };
 };
 
-const updateAdmin = async (id, data) => {
+// ==================== Get Single Admin ====================
+
+const getAdminById = async (id) => {
+  const admin = await User.findOne({
+    where: { id, role: "admin" },
+    attributes: ["id", "full_name", "email", "is_active", "faculty_id", "createdAt"],
+    include: [
+      {
+        model: Faculty,
+        attributes: ["id", "name", "email_domain"],
+        include: [{ model: University, attributes: ["id", "name"] }],
+      },
+    ],
+  });
+
+  if (!admin) throw new Error("Admin not found.");
+  return admin;
+};
+
+// ==================== Approve Admin ====================
+
+const approveAdmin = async (id) => {
+  const admin = await User.findOne({
+    where: { id, role: "admin" },
+    include: [{ model: Faculty }],
+  });
+  if (!admin) throw new Error("Admin not found.");
+
+  if (admin.is_active) throw new Error("Admin is already approved.");
+
+  // تأكد إن مفيش أدمن approved تاني لنفس الكلية (منع التكرار)
+  const existingApprovedAdmin = await User.findOne({
+    where: {
+      role: "admin",
+      faculty_id: admin.faculty_id,
+      is_active: true,
+    },
+  });
+
+  if (existingApprovedAdmin) {
+    throw new Error(
+      "This faculty already has an approved admin. Reject this request or contact support."
+    );
+  }
+
+  await admin.update({ is_active: true });
+  return admin;
+};
+
+// ==================== Reject Admin ====================
+
+const rejectAdmin = async (id) => {
   const admin = await User.findOne({ where: { id, role: "admin" } });
   if (!admin) throw new Error("Admin not found.");
 
-  if (data.password) {
-    data.password_hash = await bcrypt.hash(data.password, 10);
-    delete data.password;
+  if (admin.is_active) throw new Error("Cannot reject an already approved admin. Use delete instead.");
+
+  // بنمسح حساب الأدمن المرفوض + الكلية المرتبطة بيه (كانت اتعملت وقت الـ signup)
+  const facultyId = admin.faculty_id;
+
+  await admin.destroy();
+
+  if (facultyId) {
+    const otherAdminsUsingFaculty = await User.findOne({ where: { faculty_id: facultyId } });
+    if (!otherAdminsUsingFaculty) {
+      await Faculty.destroy({ where: { id: facultyId } });
+    }
   }
 
-  await admin.update(data);
-  return admin;
+  return { success: true };
 };
+
+// ==================== Delete Admin (Soft Delete, for already-approved admins) ====================
 
 const deleteAdmin = async (id) => {
   const admin = await User.findOne({ where: { id, role: "admin" } });
@@ -67,10 +116,10 @@ const deleteAdmin = async (id) => {
 };
 
 module.exports = {
-  getSystemSettings,
-  upsertSystemSettings,
   getAllAdmins,
-  createAdmin,
-  updateAdmin,
+  getPendingAdmins,
+  getAdminById,
+  approveAdmin,
+  rejectAdmin,
   deleteAdmin,
 };
