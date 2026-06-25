@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
   // Manager
   { label: 'Overview', icon: Activity, path: '/manager/overview', roles: ['manager'] },
   { label: 'Heatmap', icon: Map, path: '/manager/heatmap', roles: ['manager'] },
-  { label: 'AI Recommendations', icon: Lightbulb, path: '/manager/recommendations', roles: ['manager'] },
+  { label: 'Recommendations', icon: Lightbulb, path: '/manager/recommendations', roles: ['manager'] },
   { label: 'Reports', icon: FileText, path: '/manager/reports', roles: ['manager'] },
   { label: 'Top Issues', icon: ListTodo, path: '/manager/top-issues', roles: ['manager'] },
 
@@ -71,7 +71,7 @@ export function Sidebar() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const { state } = useSidebar();
-  const [role, setrole] = useState('officer')
+  const [role, setrole] = useState('manager')
 
   const filteredNavItems = navItems.filter(item =>
     item.roles.includes(role as WorkflowRole)
