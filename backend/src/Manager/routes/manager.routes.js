@@ -13,7 +13,7 @@ const {
 } = require('../controllers/manager.controllers');
 
 const managerRoutes = express.Router();
-managerRoutes.use(authenticate, isManager);
+//managerRoutes.use(authenticate, isManager);
 
 managerRoutes.get('/dashboard', getDashboardData);
 managerRoutes.get('/department-performance', departmentPerformanceController);

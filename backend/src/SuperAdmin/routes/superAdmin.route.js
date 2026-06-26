@@ -6,11 +6,15 @@ const controller = require("../controllers/superAdmin.controller");
 
 router.use(authenticate, isSuperAdmin);
 
+// Registration Requests
+router.get("/requests", controller.getAllRequests);
+router.get("/requests/pending", controller.getPendingRequests);
+router.get("/requests/:id", controller.getRequestById);
+router.patch("/requests/:id/approve", controller.approveRequest);
+router.patch("/requests/:id/reject", controller.rejectRequest);
+
+// Admin Management
 router.get("/admins", controller.getAllAdmins);
-router.get("/admins/pending", controller.getPendingAdmins);
-router.get("/admins/:id", controller.getAdminById);
-router.patch("/admins/:id/approve", controller.approveAdmin);
-router.patch("/admins/:id/reject", controller.rejectAdmin);
 router.delete("/admins/:id", controller.deleteAdmin);
 
 module.exports = router;

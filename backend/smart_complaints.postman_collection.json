@@ -135,12 +135,8 @@
 			]
 		},
 		{
-	"info": {
-		"_postman_id": "officer-api-flow-id",
-		"name": "Officer Subsystem Flow",
-		"description": "Collection for testing Officer APIs - Complaints, Appeals, and Dashboard stats",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
+			"name":"officer Endpoints",
+	
 	"item": [
 		{
 			"name": "1. Dashboard Stats",
@@ -173,30 +169,37 @@
 			"response": []
 		},
 		{
-			"name": "2. Get Department Complaints",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseUrl}}/complaints?category_id=1",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"complaints"
-					],
-					"query": [
-						{
-							"key": "category_id",
-							"value": "1",
-							"description": "Required to fetch complaints for a specific department"
-						}
-					]
-				},
-				"description": "Fetches all complaints filtered by the department's category_id."
-			},
-			"response": []
-		},
+    "name": "2. Get Department Complaints",
+    "request": {
+        "method": "GET",
+        "header": [
+            {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+            }
+        ],
+        "url": {
+            "raw": "{{baseUrl}}/complaints",
+            "host": [
+                "{{baseUrl}}"
+            ],
+            "path": [
+                "complaints"
+            ],
+            "query": [
+                {
+                    "key": "category_id",
+                    "value": "1",
+                    "description": "Optional - filter by specific category assigned to the officer",
+                    "disabled": true
+                }
+            ]
+        },
+        "description": "Fetches all complaints assigned to the authenticated officer (from token). Optionally filter by category_id."
+    },
+    "response": []
+},
 		{
 			"name": "3. Get Complaint Details",
 			"request": {
@@ -326,12 +329,7 @@
 },
 
 		{
-	"info": {
-		"_postman_id": "manager-api-flow-id",
-		"name": "Manager Subsystem Flow",
-		"description": "Collection for testing Manager Analytics, Heatmaps, and Performance Reports APIs",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
+	"name":"manager Endpoints",
 	"item": [
 		{
 			"name": "1. Manager Dashboard (with Slicer)",
@@ -494,12 +492,7 @@
 	]
 },
 		{
-	"info": {
-		"_postman_id": "admin-api-flow-id",
-		"name": "Admin Subsystem Flow",
-		"description": "Comprehensive collection for Admin actions, including CSV bulk imports, Category CRUD, Regulations, Priority Rules, and Audit Logs tracking.",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
+	"name":"Admin Endpoints",
 	"item": [
 		{
 			"name": "Students Management",
@@ -1363,209 +1356,134 @@
 			]
 		},
 		{
-			"name": "Super Admin Endpoints",
-			"item": [
-				{
-					"name": "Get System Settings",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/system-settings",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"system-settings"
-							]
-						},
-						"description": "Retrieves the global system settings (university name, email domain allowed, OTP expiry, etc.)"
-					},
-					"response": []
-				},
-				{
-					"name": "Upsert System Settings",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"university_name\": \"Cairo University\",\n  \"email_domain\": \"fci-cu.edu.eg\",\n  \"otp_expiry_seconds\": 300,\n  \"support_email\": \"support@fci-cu.edu.eg\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/system-settings",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"system-settings"
-							]
-						},
-						"description": "Creates or updates global system settings (university_name, email_domain, otp_expiry_seconds, support_email)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get All Admins",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/admins",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"admins"
-							]
-						},
-						"description": "Retrieves list of all admin users in the system."
-					},
-					"response": []
-				},
-				{
-					"name": "Create Admin",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"full_name\": \"Admin User\",\n  \"email\": \"admin.user@fci-cu.edu.eg\",\n  \"password\": \"adminSecurePassword123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/admins",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"admins"
-							]
-						},
-						"description": "Creates a new system administrator user."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Admin",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"full_name\": \"Updated Admin Name\",\n  \"password\": \"newAdminPassword123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/admins/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"admins",
-								":id"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "2",
-									"description": "The admin user's ID"
-								}
-							]
-						},
-						"description": "Updates an admin's profile or password by their ID."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Admin",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{superAdminToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/super-admin/admins/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"super-admin",
-								"admins",
-								":id"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "2",
-									"description": "The admin user's ID to delete"
-								}
-							]
-						},
-						"description": "Soft-deletes/deactivates an admin user by setting is_active to false."
-					},
-					"response": []
-				}
-			]
-		}
+"name":"auth and superAdmin Endpoints",
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "superAdminToken", "value": "", "type": "string" },
+    { "key": "requestId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Super Admin Login",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json(); if(r.token){ pm.collectionVariables.set('superAdminToken', r.token); console.log('✅ superAdminToken saved'); }"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"superadmin@system.com\",\n  \"password\": \"ChangeThisPassword123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] },
+            "description": "⚠️ غيّر الإيميل والباسورد بتاع الـ super admin الحقيقي"
+          }
+        },
+        {
+          "name": "Admin — Submit Registration Request",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json(); if(r.request_id){ pm.collectionVariables.set('requestId', r.request_id); console.log('✅ requestId saved:', r.request_id); }"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Mohamed Hassan\",\n  \"email\": \"m.hassan@eng.cu.edu.eg\",\n  \"password\": \"AdminPass123\",\n  \"university_name\": \"Cairo University\",\n  \"faculty_name\": \"Faculty of Engineering\",\n  \"email_domain\": \"@eng.cu.edu.eg\",\n  \"supporting_document\": \"https://drive.google.com/file/your-document-link\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/admin/register", "host": ["{{baseUrl}}"], "path": ["api","auth","admin","register"] },
+            "description": "مفيش user أو faculty أو university بيتعمل — بس request بيتحفظ بـ status: Pending"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@faculty.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api","auth","forgot-password"] }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"reset-token-from-email\",\n  \"password\": \"NewPassword123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api","auth","reset-password"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Super Admin",
+      "item": [
+        {
+          "name": "Requests — Get All",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/requests", "host": ["{{baseUrl}}"], "path": ["api","super-admin","requests"] },
+            "description": "كل الطلبات (Pending + Approved + Rejected)"
+          }
+        },
+        {
+          "name": "Requests — Get Pending",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/requests/pending", "host": ["{{baseUrl}}"], "path": ["api","super-admin","requests","pending"] },
+            "description": "الطلبات اللي لسه مراجعتش"
+          }
+        },
+        {
+          "name": "Requests — Get Single",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/requests/{{requestId}}", "host": ["{{baseUrl}}"], "path": ["api","super-admin","requests","{{requestId}}"] }
+          }
+        },
+        {
+          "name": "Requests — Approve ✅",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/requests/{{requestId}}/approve", "host": ["{{baseUrl}}"], "path": ["api","super-admin","requests","{{requestId}}","approve"] },
+            "description": "بيعمل: University + Faculty + Admin account + بيبعت email للأدمن"
+          }
+        },
+        {
+          "name": "Requests — Reject ❌",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{superAdminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"rejection_reason\": \"The supporting document provided is insufficient.\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/super-admin/requests/{{requestId}}/reject", "host": ["{{baseUrl}}"], "path": ["api","super-admin","requests","{{requestId}}","reject"] },
+            "description": "بيحفظ سبب الرفض ويبعت email — مفيش بيانات بتتمسح"
+          }
+        },
+        {
+          "name": "Admins — Get All",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/admins", "host": ["{{baseUrl}}"], "path": ["api","super-admin","admins"] },
+            "description": "كل الأدمنز المعتمدين مع بيانات كلياتهم وجامعاتهم"
+          }
+        },
+        {
+          "name": "Admins — Delete (Soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/super-admin/admins/2", "host": ["{{baseUrl}}"], "path": ["api","super-admin","admins","2"] },
+            "description": "⚠️ غيّر الـ 2 بالـ admin id الحقيقي"
+          }
+        }
+      ]
+    }
+  ]
+}
 	],
 	"event": [],
 	"variable": [

@@ -7,6 +7,7 @@ const {
     User,
     Student,
     ComplaintHistory,
+    CategoryOfficer,
     sequelize
 } = db;
 
@@ -14,7 +15,32 @@ const {
 // 1. Get Department (Category) Complaints
 // Ordered by AI priority highest first
 // =========================================================
-exports.getDepartmentComplaintsService = async (categoryId) => {
+exports.getDepartmentComplaintsService = async (officerId, categoryId = null) => {
+
+    // get all categories assigned to this officer
+    const assignedCategories = await CategoryOfficer.findAll({
+        where: { officer_id: officerId },
+        attributes: ['category_id']
+    });
+
+    if (assignedCategories.length === 0) {
+        return { complaints: [] };
+    }
+
+    const categoryIds = assignedCategories.map(c => c.category_id);
+
+    // if officer passed a specific category, validate it's one of his
+    if (categoryId) {
+        if (!categoryIds.includes(parseInt(categoryId))) {
+            return { complaints: [] };
+        }
+        // filter by that specific category only
+    }
+
+    const whereCategory = categoryId
+        ? `comp.category_id = ${parseInt(categoryId)}`
+        : `comp.category_id IN (${categoryIds.join(',')})`;
+
     const results = await sequelize.query(`
         SELECT
             comp.id,
@@ -22,21 +48,18 @@ exports.getDepartmentComplaintsService = async (categoryId) => {
             comp.ai_summary,
             comp.priority,
             comp.status,
+            comp.category_id,
             s.full_name AS student_name,
             comp."createdAt" AS created_at
         FROM "Complaints" comp
         JOIN users u ON u.id = comp.user_id
         LEFT JOIN "Students" s ON s.id = u.student_id
-        WHERE comp.category_id = :categoryId
+        WHERE ${whereCategory}
         ORDER BY comp.priority DESC, comp."createdAt" DESC
-    `, {
-        replacements: { categoryId },
-        type: sequelize.QueryTypes.SELECT
-    });
+    `, { type: sequelize.QueryTypes.SELECT });
 
     return { complaints: results };
 };
-
 // =========================================================
 // 2. Get Complaint Details (with student info)
 // =========================================================

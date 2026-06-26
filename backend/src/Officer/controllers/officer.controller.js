@@ -13,16 +13,10 @@ const {
 // =========================================================
 exports.getDepartmentComplaintsController = async (req, res) => {
     try {
-        const { category_id } = req.query;
+        const officerId = req.user.id; // من الـ token
+        const { category_id } = req.query; // optional
 
-        if (!category_id) {
-            return res.status(400).json({
-                success: false,
-                error: 'category_id is required'
-            });
-        }
-
-        const data = await getDepartmentComplaintsService(category_id);
+        const data = await getDepartmentComplaintsService(officerId, category_id);
         return res.status(200).json(data);
 
     } catch (error) {
