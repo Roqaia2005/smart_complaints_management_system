@@ -1,13 +1,5 @@
 const express = require("express");
 const {
-  checkStudent,
-  sendOtp,
-  verifyOtp,
-  registerStudent,
-  registerAdmin,
-  sendStaffOtp,
-  verifyStaffOtp,
-  registerStaff,
   forgotPassword,
   resetPassword,
   login,
@@ -15,23 +7,15 @@ const {
 
 const authRoutes = express.Router();
 
-// Student flow
-authRoutes.post("/check-student", checkStudent);
-authRoutes.post("/send-otp", sendOtp);
-authRoutes.post("/verify-otp", verifyOtp);
-authRoutes.post("/register", registerStudent);
-authRoutes.post('/admin/register',registerAdmin);
-
-// Staff flow (Officer / Manager) — unified, role in body
-authRoutes.post("/staff/send-otp", sendStaffOtp);
-authRoutes.post("/staff/verify-otp", verifyStaffOtp);
-authRoutes.post("/staff/register", registerStaff);
-
-// Password reset — shared by all roles that already have an account
+// =========================================================
+// PASSWORD RESET (shared by all roles)
+// =========================================================
 authRoutes.post("/forgot-password", forgotPassword);
 authRoutes.post("/reset-password", resetPassword);
 
-// Shared
+// =========================================================
+// SHARED ENTRY POINT (Login Only)
+// =========================================================
 authRoutes.post("/login", login);
 
 module.exports = authRoutes;
