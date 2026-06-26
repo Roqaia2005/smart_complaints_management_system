@@ -135,972 +135,882 @@
 			]
 		},
 		{
-			"name": "Officer Endpoints",
+	"info": {
+		"_postman_id": "officer-api-flow-id",
+		"name": "Officer Subsystem Flow",
+		"description": "Collection for testing Officer APIs - Complaints, Appeals, and Dashboard stats",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Dashboard Stats",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/dashboard?category_id=all&officer_id=36",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"dashboard"
+					],
+					"query": [
+						{
+							"key": "category_id",
+							"value": "all",
+							"description": "Filter by specific category or 'all'"
+						},
+						{
+							"key": "officer_id",
+							"value": "36",
+							"description": "Defaults to 36 if not provided"
+						}
+					]
+				},
+				"description": "Gets dashboard statistics with slicing capabilities for the officer."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Get Department Complaints",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/complaints?category_id=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"complaints"
+					],
+					"query": [
+						{
+							"key": "category_id",
+							"value": "1",
+							"description": "Required to fetch complaints for a specific department"
+						}
+					]
+				},
+				"description": "Fetches all complaints filtered by the department's category_id."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Get Complaint Details",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/complaints/details/10",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"complaints",
+						"details",
+						"10"
+					],
+					"description": "Replace '10' with the actual complaint ID"
+				},
+				"description": "Retrieves the full details and history of a single complaint."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Update Complaint Status & Resolution",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"status\": \"resolved\",\n  \"resolution_text\": \"The issue has been successfully resolved by the department head and schedules updated.\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/complaints/10/status",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"complaints",
+						"10",
+						"status"
+					]
+				},
+				"description": "Updates the status (In_Progress / Resolved) and appends the final resolution text in ONE atomic operation."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Get Appealed Complaints",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/appeals?category_id=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"appeals"
+					],
+					"query": [
+						{
+							"key": "category_id",
+							"value": "1"
+						}
+					]
+				},
+				"description": "Fetches all escalated or appealed complaints belonging to the specified category."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Mark Appeal as Reviewed",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/appeals/5/review",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"appeals",
+						"5",
+						"review"
+					]
+				},
+				"description": "Marks an appeal as reviewed by the officer."
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "YOUR_JWT_TOKEN_HERE",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+},
+
+		{
+	"info": {
+		"_postman_id": "manager-api-flow-id",
+		"name": "Manager Subsystem Flow",
+		"description": "Collection for testing Manager Analytics, Heatmaps, and Performance Reports APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Manager Dashboard (with Slicer)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/dashboard?category_id=3",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"dashboard"
+					],
+					"query": [
+						{
+							"key": "category_id",
+							"value": "3",
+							"description": "Filter dashboard statistics by a specific category id (Slicer)"
+						}
+					]
+				},
+				"description": "Retrieves comprehensive manager dashboard stats and employee performance metrics."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Department Performance",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/department-performance",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"department-performance"
+					]
+				},
+				"description": "Fetches analytical statistics comparing performance across different departments."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Heatmap Data",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/heatmap?dimension=time",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"heatmap"
+					],
+					"query": [
+						{
+							"key": "dimension",
+							"value": "time",
+							"description": "Dimension for the heatmap (e.g., 'time', 'category', 'location')"
+						}
+					]
+				},
+				"description": "Gets distributed data tailored for building density heatmaps based on a specific dimension."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Comprehensive Reports",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/reports?from=2026-01-01&to=2026-06-30&category_id=1&status=Resolved",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"reports"
+					],
+					"query": [
+						{
+							"key": "from",
+							"value": "2026-01-01",
+							"description": "Start date filter (YYYY-MM-DD)"
+						},
+						{
+							"key": "to",
+							"value": "2026-06-30",
+							"description": "End date filter (YYYY-MM-DD)"
+						},
+						{
+							"key": "category_id",
+							"value": "1",
+							"description": "Optional category filter"
+						},
+						{
+							"key": "status",
+							"value": "Resolved",
+							"description": "Optional status filter (e.g., Pending, In_Progress, Resolved)"
+						}
+					]
+				},
+				"description": "Generates aggregated reports with advanced date and status filters."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Top Issues per Category",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/top-issues/2",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"top-issues",
+						"2"
+					],
+					"description": "Replace '2' with the specific category_id you want to audit"
+				},
+				"description": "Retrieves the most recurring and critical issues for a specific category."
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "YOUR_MANAGER_JWT_TOKEN_HERE",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+},
+		{
+	"info": {
+		"_postman_id": "admin-api-flow-id",
+		"name": "Admin Subsystem Flow",
+		"description": "Comprehensive collection for Admin actions, including CSV bulk imports, Category CRUD, Regulations, Priority Rules, and Audit Logs tracking.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Students Management",
 			"item": [
 				{
-					"name": "Get Department Complaints",
+					"name": "Create Single Student",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/officer/complaints?category_id=1",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"officer",
-								"complaints"
-							],
-							"query": [
-								{
-									"key": "category_id",
-									"value": "1",
-									"description": "The category/department ID managed by the officer"
-								}
-							]
-						},
-						"description": "Retrieves all complaints belonging to the officer's department, ordered by AI priority."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Complaint Details",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/officer/complaints/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"officer",
-								"complaints",
-								":id"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "1",
-									"description": "The complaint ID"
-								}
-							]
-						},
-						"description": "Retrieves detailed information about a complaint including student academic info."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Complaint Status",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"status\": \"resolved\",\n  \"resolution_text\": \"تم تغيير راوتر الطابق الرابع وتحديث سرعة الإنترنت.\"\n}"
+							"raw": "{\n  \"student_id\": 20230001,\n  \"faculty_id\": 1,\n  \"full_name\": \"Ahmed Ali\",\n  \"email\": \"ahmed.ali@university.edu.eg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/officer/complaints/:id/status",
+							"raw": "{{baseUrl}}/students",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"officer",
-								"complaints",
-								":id",
-								"status"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "1",
-									"description": "The complaint ID to update"
-								}
+								"students"
 							]
-						},
-						"description": "Updates a complaint's status to 'in_progress' or 'resolved'. If resolving, a resolution_text is required."
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "Get Appealed Complaints",
+					"name": "Import Students Preview (CSV)",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Select the students.csv file here"
+								}
+							]
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/officer/appeals?category_id=1",
+							"raw": "{{baseUrl}}/students/import/preview",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"officer",
-								"appeals"
-							],
-							"query": [
-								{
-									"key": "category_id",
-									"value": "1",
-									"description": "The category/department ID"
-								}
+								"students",
+								"import",
+								"preview"
 							]
 						},
-						"description": "Retrieves appealed complaints in the officer's department."
+						"description": "Parses CSV and returns parsed JSON array for verification before DB write."
 					},
 					"response": []
 				},
 				{
-					"name": "Mark Appeal as Reviewed",
+					"name": "Confirm Students Import",
 					"request": {
-						"method": "PATCH",
+						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"users\": [\n    { \"student_id\": 20230001, \"full_name\": \"Ahmed Ali\", \"email\": \"ahmed@univ.edu\" },\n    { \"student_id\": 20230002, \"full_name\": \"Sara Amr\", \"email\": \"sara@univ.edu\" }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/officer/appeals/:id/review",
+							"raw": "{{baseUrl}}/students/import/confirm",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"officer",
-								"appeals",
-								":id",
-								"review"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "1",
-									"description": "The appeal ID"
-								}
+								"students",
+								"import",
+								"confirm"
 							]
-						},
-						"description": "Marks a student's appeal as reviewed."
+						}
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "Manager Endpoints",
+			"name": "Officers Management",
 			"item": [
 				{
-					"name": "Get Overview Statistics",
+					"name": "Create Single Officer",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/overview?from=2026-01-01",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"overview"
-							],
-							"query": [
-								{
-									"key": "from",
-									"value": "2026-01-01",
-									"description": "Optional filter start date"
-								}
-							]
-						},
-						"description": "Retrieves the count of total, pending, resolved, in-progress complaints, and appeals."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Department Performance",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/department-performance",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"department-performance"
-							]
-						},
-						"description": "Retrieves resolution counts and average resolution times in hours per academic department."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Heatmap (by category)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=category",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"heatmap"
-							],
-							"query": [
-								{
-									"key": "dimension",
-									"value": "category",
-									"description": "Dimension: category, location, time, or department"
-								}
-							]
-						},
-						"description": "Retrieves heatmap distribution count by category."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Heatmap (by location)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=location",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"heatmap"
-							],
-							"query": [
-								{
-									"key": "dimension",
-									"value": "location"
-								}
-							]
-						},
-						"description": "Retrieves heatmap distribution count by location."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Heatmap (by time)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=time",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"heatmap"
-							],
-							"query": [
-								{
-									"key": "dimension",
-									"value": "time"
-								}
-							]
-						},
-						"description": "Retrieves heatmap distribution count by time (YYYY-MM)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Heatmap (by department)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=department",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"heatmap"
-							],
-							"query": [
-								{
-									"key": "dimension",
-									"value": "department"
-								}
-							]
-						},
-						"description": "Retrieves heatmap distribution count by academic department."
-					},
-					"response": []
-				},
-				{
-					"name": "Get AI Recommendations",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/manager/recommendations",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"manager",
-								"recommendations"
-							]
-						},
-						"description": "Retrieves AI-generated system recommendations for resolving recurring issues."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Recommendation Status",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"status\": \"implemented\"\n}"
+							"raw": "{\n  \"full_name\": \"Officer Mohamed\",\n  \"email\": \"officer.m@univ.edu\",\n  \"officer_title\": \"Academic Counselor\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/manager/recommendations/:id",
+							"raw": "{{baseUrl}}/officers",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"manager",
-								"recommendations",
-								":id"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "1",
-									"description": "The AI recommendation ID"
-								}
+								"officers"
 							]
-						},
-						"description": "Updates the status of an AI recommendation. Allowed: pending, implemented, ignored."
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "Get Filtered Reports",
+					"name": "Import Officers Preview (CSV)",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/manager/reports?category_id=1&status=resolved&from=2026-01-01&to=2026-12-31",
+							"raw": "{{baseUrl}}/officers/import/preview",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"manager",
-								"reports"
-							],
-							"query": [
-								{
-									"key": "category_id",
-									"value": "1",
-									"description": "Optional category filter"
-								},
-								{
-									"key": "status",
-									"value": "resolved",
-									"description": "Optional status filter"
-								},
-								{
-									"key": "from",
-									"value": "2026-01-01",
-									"description": "Optional start date filter"
-								},
-								{
-									"key": "to",
-									"value": "2026-12-31",
-									"description": "Optional end date filter"
-								}
+								"officers",
+								"import",
+								"preview"
 							]
-						},
-						"description": "Retrieves structured reports on complaints based on filters."
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "Get Top Issues by Category",
+					"name": "Confirm Officers Import",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"officers\": []\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
-							"raw": "{{baseUrl}}/api/manager/top-issues/:category_id",
+							"raw": "{{baseUrl}}/officers/import/confirm",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"api",
-								"manager",
-								"top-issues",
-								":category_id"
-							],
-							"variable": [
-								{
-									"key": "category_id",
-									"value": "1",
-									"description": "The category ID"
-								}
+								"officers",
+								"import",
+								"confirm"
 							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Officer Manager Flag",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"is_also_manager\": true,\n  \"manager_title\": \"Vice Dean of Student Affairs\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
-						"description": "Gets top recurring issues in a given category."
+						"url": {
+							"raw": "{{baseUrl}}/officers/12/manager-flag",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"officers",
+								"12",
+								"manager-flag"
+							]
+						}
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "Admin Endpoints",
+			"name": "Categories CRUD",
 			"item": [
 				{
-					"name": "Categories",
-					"item": [
-						{
-							"name": "Get All Categories",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories"
-									]
-								},
-								"description": "Gets all active complaint categories."
-							},
-							"response": []
-						},
-						{
-							"name": "Add New Category",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"الخدمات الطلابية والأنشطة\",\n  \"description\": \"شكاوى تتعلق بالرعاية الاجتماعية، الأنشطة الرياضية، الرحلات والخدمات العامة.\",\n  \"sla_hours\": 72,\n  \"keywords\": \"رعاية, نشاط, كافيتريا, مسرح, رحلات\",\n  \"responsible_id\": 2,\n  \"faculty_id\": 1\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories"
-									]
-								},
-								"description": "Creates a new category, adds keyword associations, assigns an officer, and triggers ChromaDB refresh."
-							},
-							"response": []
-						},
-						{
-							"name": "Edit Category",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"sla_hours\": 48,\n  \"description\": \"تعديل وصف قسم الخدمات العامة للطلاب.\"\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories/:id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories",
-										":id"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1",
-											"description": "The category ID to update"
-										}
-									]
-								},
-								"description": "Modifies category metadata details."
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Category",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories/:id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories",
-										":id"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1",
-											"description": "The category ID"
-										}
-									]
-								},
-								"description": "Deactivates a category (Soft delete setting is_active = false)."
-							},
-							"response": []
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/categories",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"categories"
+							]
 						}
-					]
+					},
+					"response": []
 				},
 				{
-					"name": "Users",
-					"item": [
-						{
-							"name": "Get Pending Approvals",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{adminToken}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/pending",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										"pending"
-									]
-								},
-								"description": "Lists officer and manager accounts awaiting admin approval (is_active = false)."
-							},
-							"response": []
+					"name": "Add Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Schedules Complaints\",\n  \"description\": \"Issues related to class timings and lecture conflicts\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
-						{
-							"name": "Get All Users",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users"
-									]
-								},
-								"description": "Retrieves list of all system users (students, officers, managers, admins)."
-							},
-							"response": []
-						},
-						{
-							"name": "Add New User",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"full_name\": \"Ahmed Ali\",\n  \"email\": \"ahmed.ali@fci-cu.edu.eg\",\n  \"password\": \"securePassword123\",\n  \"role\": \"officer\"\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users"
-									]
-								},
-								"description": "Creates a new officer or manager account directly (active immediately). Requires admin authentication."
-							},
-							"response": []
-						},
-						{
-							"name": "Approve User",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{adminToken}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/:id/approve",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										":id",
-										"approve"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1",
-											"description": "The pending user ID"
-										}
-									]
-								},
-								"description": "Approves a pending officer or manager signup, setting is_active to true so they can log in."
-							},
-							"response": []
-						},
-						{
-							"name": "Reject User",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{adminToken}}",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/:id/reject",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										":id",
-										"reject"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1",
-											"description": "The pending user ID"
-										}
-									]
-								},
-								"description": "Rejects a pending officer or manager signup and deletes the registration."
-							},
-							"response": []
-						},
-						{
-							"name": "Edit User",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"full_name\": \"Ahmed M. Ali\"\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/:id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										":id"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1",
-											"description": "The user ID"
-										}
-									]
-								},
-								"description": "Updates user details (e.g. name, email, or role)."
-							},
-							"response": []
-						},
-						{
-							"name": "Delete User",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/:id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										":id"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1"
-										}
-									]
-								},
-								"description": "Deactivates user account (Soft delete setting is_active = false)."
-							},
-							"response": []
+						"url": {
+							"raw": "{{baseUrl}}/categories",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"categories"
+							]
 						}
-					]
+					},
+					"response": []
 				},
 				{
-					"name": "Regulations",
-					"item": [
-						{
-							"name": "Get All Regulations",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations"
-									]
-								},
-								"description": "Gets all university rules and FAQ guidelines."
-							},
-							"response": []
+					"name": "Patch Category",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Schedules Complaints Name\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
-						{
-							"name": "Add New Regulation",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"article number\": \"12\",\n  \"content\": \"يحق للطالب التظلم من نتيجة الامتحان خلال 15 يوماً من إعلان النتيجة رسميّاً.\",\n  \"type\": \"rule\",\n  \"faculty_id\": 1\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations"
-									]
-								},
-								"description": "Creates a new regulation rule/FAQ and triggers ChromaDB vector indexing."
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Regulation",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations/:id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations",
-										":id"
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "1"
-										}
-									]
-								},
-								"description": "Permanently deletes a regulation by ID."
-							},
-							"response": []
+						"url": {
+							"raw": "{{baseUrl}}/categories/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"categories",
+								"1"
+							]
 						}
-					]
+					},
+					"response": []
 				},
 				{
-					"name": "Priority Rules",
-					"item": [
-						{
-							"name": "Get All Priority Rules",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/priority-rules",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"priority-rules"
-									]
-								},
-								"description": "Retrieves the configured AI priority scoring rules."
-							},
-							"response": []
-						},
-						{
-							"name": "Upsert Priority Rule",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"priority level\": 5,\n  \"description\": \"حالات الخطر الجسيمة مثل الماس الكهربائي أو تسريب الغاز في المباني أو الانهيار الجزئي.\",\n  \"examples\": [\"ماس كهربائي\", \"تسريب غاز\", \"حريق\", \"انهيار\"]\n}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/priority-rules",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"priority-rules"
-									]
-								},
-								"description": "Creates or updates an existing priority rule configuration."
-							},
-							"response": []
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/categories/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"categories",
+								"1"
+							]
 						}
-					]
-				},
-				{
-					"name": "Audit Logs",
-					"item": [
-						{
-							"name": "Get Audit Logs",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/audit-logs?user_id=1&entity_type=Category&from=2026-01-01&to=2026-12-31",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"audit-logs"
-									],
-									"query": [
-										{
-											"key": "user_id",
-											"value": "1",
-											"description": "Filter by actor user ID"
-										},
-										{
-											"key": "entity_type",
-											"value": "Category",
-											"description": "Filter by entity type (e.g. Category, User, Regulation)"
-										},
-										{
-											"key": "from",
-											"value": "2026-01-01",
-											"description": "Filter start date"
-										},
-										{
-											"key": "to",
-											"value": "2026-12-31",
-											"description": "Filter end date"
-										}
-									]
-								},
-								"description": "Retrieves systemic audit logs tracking changes in categories, users, or regulations."
-							},
-							"response": []
-						}
-					]
+					},
+					"response": []
 				}
 			]
 		},
+		{
+			"name": "General User Management",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Patch User (Activate/Deactivate/Update)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"is_active\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/5",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"5"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/5",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"5"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Regulations",
+			"item": [
+				{
+					"name": "Get Regulations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/regulations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"regulations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Regulation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Bylaw Rule 42\",\n  \"content\": \"Complaints must be filed within 14 days of the incident.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/regulations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"regulations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Regulation",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/regulations/3",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"regulations",
+								"3"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Priority Rules & Audit",
+			"item": [
+				{
+					"name": "Get Priority Rules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/priority-rules",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"priority-rules"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Save/Update Priority Rule",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rule_name\": \"Senior Student Escalation\",\n  \"weight\": 5,\n  \"conditions\": \"{ \\\"level\\\": 4 }\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/priority-rules",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"priority-rules"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get System Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/audit-logs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"audit-logs"
+							]
+						},
+						"description": "Fetches chronological actions made by users across the system for security auditing."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "YOUR_ADMIN_JWT_TOKEN_HERE",
+				"type": "string"
+			}
+		]
+	}
+},
 		{
 			"name": "Auth Endpoints",
 			"item": [
