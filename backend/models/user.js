@@ -11,10 +11,12 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.AuditLog, { foreignKey: "user_id" });
       User.hasMany(models.ComplaintHistory, { foreignKey: "changed_by" });
 
-      User.belongsToMany(models.Category, {
-        through: "category_officers",
-        foreignKey: "officer_id",
-      });
+     User.belongsToMany(models.Category, {
+  through: models.CategoryOfficer, // استخدم الموديل مش الـ String
+  foreignKey: "officer_id",       // الكي بتاع الموديل الحالي (User) جوه جدول الـ pivot
+  otherKey: "category_id",         // الكي بتاع الموديل التاني (Category) جوه جدول الـ pivot
+  as: "categories",                // الـ alias اختياري بس يفضل تكتبه
+});
 
       User.hasMany(models.Appeal, {
         foreignKey: "responded_by",

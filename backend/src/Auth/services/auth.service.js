@@ -1,7 +1,8 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const { Student, User, OtpToken, SystemSetting } = require("../../../models");
+// بعد
+const { Student, User, OtpToken, Faculty, University, sequelize } = require("../../../models");
 const {
   jwt: jwtConfig,
   email: emailConfig,
@@ -28,15 +29,11 @@ const createTransporter = () => {
   });
 };
 
-const getEmailDomain = async () => {
-  const settings = await SystemSetting.findOne();
-  return settings?.email_domain || null;
+const getOtpExpiry = () => {
+    return parseInt(process.env.OTP_EXPIRY_SECONDS, 10) || 300;
 };
 
-const getOtpExpirySeconds = async () => {
-  const settings = await SystemSetting.findOne();
-  return settings?.otp_expiry_seconds || 300;
-};
+
 
 const hashPassword = (password) => bcrypt.hash(password, 10);
 
@@ -251,6 +248,7 @@ const registerStudent = async (student_number, password) => {
   return generateAuthResponse(user);
 };
 
+
 // =========================================================================
 // STAFF FLOW (Officer / Manager)
 // The Admin already created the User record (email + role, NO password)
@@ -261,36 +259,41 @@ const registerStudent = async (student_number, password) => {
 // ==================== Send OTP (Officer / Manager) ====================
 
 const sendStaffOtp = async (email, role) => {
-  if (!STAFF_SIGNUP_ROLES.includes(role)) {
-    throw new Error("Invalid role for staff signup.");
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-
-  const emailDomain = await getEmailDomain();
-  if (!isEmailAllowed(normalizedEmail, emailDomain)) {
-    throw new Error(
-      `Email must use the configured university domain (${emailDomain}).`,
-    );
-  }
-
-  const user = await User.findOne({
-    where: { email: normalizedEmail, role },
-  });
-
-  if (!user) {
-    throw new Error(
-      "This email was not found. Please contact your administrator.",
-    );
-  }
-
-  if (user.password_hash) {
-    throw new Error("This account is already registered. Please log in.");
-  }
+    if (!STAFF_SIGNUP_ROLES.includes(role)) {
+        throw new Error("Invalid role for staff signup.");
+    }
+ 
+    const normalizedEmail = email.trim().toLowerCase();
+ 
+    // find the user first to get their faculty
+    const user = await User.findOne({
+        where: { email: normalizedEmail, role },
+        include: [{
+            model: Faculty,
+            attributes: ['email_domain']
+        }]
+    });
+ 
+    if (!user) {
+        throw new Error("This email was not found. Please contact your administrator.");
+    }
+ 
+    if (user.password_hash) {
+        throw new Error("This account is already registered. Please log in.");
+    }
+ 
+    // validate email domain against the faculty's configured domain
+    if (user.Faculty && user.Faculty.email_domain) {
+        if (!isEmailAllowed(normalizedEmail, user.Faculty.email_domain)) {
+            throw new Error(
+                `Email must use the configured university domain (@${user.Faculty.email_domain}).`
+            );
+        }
+    }
 
   await checkCooldown({ email: normalizedEmail, signup_role: role });
 
-  const expirySeconds = await getOtpExpirySeconds();
+  const expirySeconds = await getOtpExpiry();
   const otp_code = generateOtpCode();
   const otp_hash = await hashOtp(otp_code);
   const expires_at = new Date(Date.now() + expirySeconds * 1000);
@@ -353,6 +356,85 @@ const verifyStaffOtp = async (email, otp_code, role) => {
 };
 
 // ==================== Register Staff (Officer / Manager) ====================
+
+const registerAdmin = async (data) => {
+    const {
+        full_name,
+        email,
+        password,
+        university_name,
+        faculty_name,
+        email_domain
+    } = data;
+ 
+    // validations
+    if (!full_name || !email || !password || !university_name || !faculty_name || !email_domain) {
+        throw new Error("All fields are required: full_name, email, password, university_name, faculty_name, email_domain.");
+    }
+ 
+    validatePassword(password);
+ 
+    const normalizedEmail = email.trim().toLowerCase();
+ 
+    // check email not already taken
+    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+    if (existingUser) {
+        throw new Error("An account with this email already exists.");
+    }
+ 
+    const t = await require('../../../models').sequelize.transaction();
+ 
+    try {
+        // 1. Create University
+        const university = await University.create(
+            { name: university_name.trim() },
+            { transaction: t }
+        );
+ 
+        // 2. Create Faculty linked to that University
+        const faculty = await Faculty.create(
+            {
+                name: faculty_name.trim(),
+                email_domain: email_domain.trim().toLowerCase(),
+                university_id: university.id
+            },
+            { transaction: t }
+        );
+ 
+        // 3. Create Admin user (inactive until super_admin approves)
+        const password_hash = await hashPassword(password);
+ 
+        const admin = await User.create(
+            {
+                full_name: full_name.trim(),
+                email: normalizedEmail,
+                password_hash,
+                role: ROLES.ADMIN,
+                is_active: false,   // pending super_admin approval
+                faculty_id: faculty.id
+            },
+            { transaction: t }
+        );
+ 
+        await t.commit();
+ 
+        return {
+            success: true,
+            message: "Registration submitted. Your account is pending super admin approval.",
+            user: {
+                id: admin.id,
+                name: admin.full_name,
+                role: admin.role,
+                university: university.name,
+                faculty: faculty.name
+            }
+        };
+ 
+    } catch (error) {
+        await t.rollback();
+        throw error;
+    }
+};
 
 const registerStaff = async (email, password, role) => {
   if (!STAFF_SIGNUP_ROLES.includes(role)) {
@@ -537,6 +619,7 @@ module.exports = {
   registerStaff,
   // staff (role-bound convenience wrappers)
   registerOfficer,
+  registerAdmin,
   registerManager,
   sendOfficerOtp,
   sendManagerOtp,

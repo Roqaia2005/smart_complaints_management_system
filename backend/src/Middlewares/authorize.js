@@ -31,5 +31,6 @@ const isSuperAdmin = authorize("super_admin");
 const isAdmin = authorize("admin", "super_admin");
 const isManager = authorize("manager", "admin", "super_admin");
 const isOfficer = authorize("officer", "manager", "admin", "super_admin");
+const isStudent = authorize("student");
 
-module.exports = { authorize, isSuperAdmin, isAdmin, isManager, isOfficer };
+module.exports = { authorize, isSuperAdmin, isAdmin, isManager, isOfficer,isStudent };

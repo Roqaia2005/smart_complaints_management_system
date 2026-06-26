@@ -1,10 +1,11 @@
 const express = require('express');
-
+const authenticate = require("../../Middlewares/auth");
+const { isStudent } = require("../../Middlewares/authorize");
 const controller = require('../controllers/studentController');
 const validator = require('../middlewares/studentValidator');
 
 const router = express.Router();
-
+router.use(authenticate, isStudent);
 // 1. إنشاء شكوى
 router.post(
     '/',

@@ -78,7 +78,42 @@ const registerStudent = async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
 };
+const registerAdmin = async (req, res) => {
+  try {
+    const {
+      full_name,
+      email,
+      password,
+      university_name,
+      faculty_name,
+      email_domain,
+    } = req.body;
 
+    if (
+      !full_name ||
+      !email ||
+      !password ||
+      !university_name ||
+      !faculty_name ||
+      !email_domain
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "full_name, email, password, university_name, faculty_name and email_domain are required.",
+      });
+    }
+
+    const result = await authService.registerAdmin(req.body);
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 // =========================================================
 // STAFF (Officer / Manager) — unified, role passed in body
 // =========================================================
@@ -240,6 +275,7 @@ module.exports = {
   sendOtp,
   verifyOtp,
   registerStudent,
+  registerAdmin,
   sendStaffOtp,
   verifyStaffOtp,
   registerStaff,

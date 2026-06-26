@@ -4,6 +4,7 @@ const {
   sendOtp,
   verifyOtp,
   registerStudent,
+  registerAdmin,
   sendStaffOtp,
   verifyStaffOtp,
   registerStaff,
@@ -19,6 +20,7 @@ authRoutes.post("/check-student", checkStudent);
 authRoutes.post("/send-otp", sendOtp);
 authRoutes.post("/verify-otp", verifyOtp);
 authRoutes.post("/register", registerStudent);
+authRoutes.post('/admin/register',registerAdmin);
 
 // Staff flow (Officer / Manager) — unified, role in body
 authRoutes.post("/staff/send-otp", sendStaffOtp);

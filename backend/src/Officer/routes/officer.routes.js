@@ -1,5 +1,9 @@
 const express = require('express');
+const authenticate = require("../../Middlewares/auth");
+const { isOfficer } = require("../../Middlewares/authorize");
+
 const router = express.Router();
+//router.use(authenticate, isOfficer);
 
 const {
     getDepartmentComplaintsController,

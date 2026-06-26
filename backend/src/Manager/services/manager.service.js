@@ -101,46 +101,7 @@ exports.getManagerDashboardStats = async (categoryId) => {
 // =========================================================
 // 0. Overview
 // =========================================================
-exports.overviewService = async (userId, fromDate) => {
-    const complaintWhere = {};
 
-    if (fromDate) {
-        complaintWhere.createdAt = {
-            [Op.gte]: fromDate
-        };
-    }
-
-    const [
-        total,
-        pending,
-        resolved,
-        inProgress,
-        appealed
-    ] = await Promise.all([
-        Complaint.count({ where: complaintWhere }),
-        Complaint.count({
-            where: {
-                ...complaintWhere,
-                status: { [Op.or]: ['pending', 'Pending'] }
-            }
-        }),
-        Complaint.count({
-            where: {
-                ...complaintWhere,
-                status: { [Op.or]: ['resolved', 'Resolved'] }
-            }
-        }),
-        Complaint.count({
-            where: {
-                ...complaintWhere,
-                status: { [Op.or]: ['in_progress', 'In_Progress'] }
-            }
-        }),
-        Appeal.count()
-    ]);
-
-    return { total, pending, resolved, inProgress, appealed };
-};
 
 // =========================================================
 // 1. Department Performance
@@ -241,58 +202,7 @@ exports.heatmapService = async (dimension) => {
 // =========================================================
 // 3. AI Recommendations - list all
 // =========================================================
-exports.getRecommendationsService = async () => {
-    const recommendations = await AiRecommendation.findAll({
-        include: [{
-            model: Category,
-            attributes: ['name']
-        }],
-        order: [['createdAt', 'DESC']]
-    });
- 
-    const formatted = recommendations.map(r => ({
-        id: r.id,
-        category: r.Category ? r.Category.name : null,
-        pattern: r.pattern_detected,
-        recommendation: r.recommendation,
-        status: r.status,
-        root_cause: r.root_cause,
-        urgency: r.urgency,
-        estimated_impact: r.estimated_impact,
-        location: r.location,
-        complaint_count: r.complaint_count,
-        avg_resolution_h: r.avg_resolution_h,
-        appeal_rate_pct: r.appeal_rate_pct,
-        top_keywords: r.top_keywords,
-        generated_at: r.generated_at
-    }));
- 
-    return { recommendations: formatted };
-};
- 
-// =========================================================
-// 4. Update Recommendation Status
-// =========================================================
-exports.updateRecommendationStatusService = async (id, status) => {
-    const allowedStatuses = ['pending', 'implemented', 'ignored'];
- 
-    if (!allowedStatuses.includes(status)) {
-        throw new Error(
-            `Invalid status. Allowed values: ${allowedStatuses.join(', ')}`
-        );
-    }
- 
-    const recommendation = await AiRecommendation.findByPk(id);
- 
-    if (!recommendation) {
-        throw new Error('Recommendation not found');
-    }
- 
-    recommendation.status = status;
-    await recommendation.save();
- 
-    return { success: true };
-};
+
  
 // =========================================================
 // 5. Reports (filtered complaints)

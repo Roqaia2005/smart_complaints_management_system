@@ -1,8 +1,7 @@
-const fs = require("fs");
-const getAdminService = async () => {
-  return require("../services/admin.service");
-};
 
+const fs = require("fs");
+const adminService = require("../services/admin.service");
+// when i remove async error changes from get categories is not a function to await on top level
 // =========================================================
 // Helpers
 // =========================================================

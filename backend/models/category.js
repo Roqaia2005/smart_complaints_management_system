@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
 
     // Many-to-Many
     Category.belongsToMany(models.User, {
-      through: "category_officers",
+    through: models.CategoryOfficer,
       foreignKey: "category_id",
       as: "officers",
     });

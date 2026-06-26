@@ -36,27 +36,7 @@ exports.getDashboardData = async (req, res) => {
     }
 };
 
-// =========================================================
-// 2. Overview
-// =========================================================
-exports.overviewController = async (req, res) => {
-    try {
-        const userId = req.user?.id;
-        const { from } = req.query;
-        const overviewData = await overviewService(userId, from);
-        return res.status(200).json({
-            success: true,
-            message: "kpis returned successfully",
-            overviewData
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "there's an error",
-            error: error.message
-        });
-    }
-};
+
 
 // =========================================================
 // 3. Department Performance
@@ -92,34 +72,7 @@ exports.heatmapController = async (req, res) => {
 // =========================================================
 // 5. AI Recommendations
 // =========================================================
-exports.getRecommendationsController = async (req, res) => {
-    try {
-        const data = await getRecommendationsService();
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
 
-// =========================================================
-// 6. Update Recommendation Status
-// =========================================================
-exports.updateRecommendationStatusController = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-        const data = await updateRecommendationStatusService(id, status);
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(400).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
 
 // =========================================================
 // 7. Reports

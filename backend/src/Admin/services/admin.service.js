@@ -458,8 +458,8 @@ exports.createOfficerService = async (data, facultyId) => {
       "One or more category_ids are invalid or belong to a different faculty",
     );
   }
-}
-const officer = await User.create({
+
+  const officer = await User.create({
     full_name,
     email,
     role: ROLES.OFFICER,
@@ -468,18 +468,21 @@ const officer = await User.create({
     is_also_manager: !!is_also_manager,
     manager_title: is_also_manager ? (manager_title || null) : null,
     officer_title: officer_title || null,
-});
+  });
 
-await Promise.all(
-    category_ids.map(category_id =>
-        CategoryOfficer.create({
-            category_id,
-            officer_id: officer.id,
-            assigned_at: new Date(),
-            officer_type: officer_title || null,
-        })
-    )
-)
+  await Promise.all(
+    category_ids.map((category_id) =>
+      CategoryOfficer.create({
+        category_id,
+        officer_id: officer.id,
+        assigned_at: new Date(),
+        officer_type: officer_title || null,
+      }),
+    ),
+  );
+
+  return { success: true, officer };
+};
 
 exports.importOfficersCsvService = async (filePath, facultyId) => {
   const rows = await parseCsvFile(filePath);
