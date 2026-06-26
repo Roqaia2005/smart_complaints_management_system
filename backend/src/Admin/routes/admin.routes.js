@@ -24,7 +24,7 @@ const upload = multer({
 });
 
 // All admin routes require a valid token AND the admin (or super_admin) role
-//adminRoutes.use(authenticate, isAdmin);
+adminRoutes.use(authenticate, isAdmin);
 
 // =========================================================
 // STUDENTS
