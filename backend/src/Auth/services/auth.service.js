@@ -1,13 +1,13 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const { Student, User, OtpToken, Faculty, University, sequelize, AdminRegistrationRequest } = require("../../../models");
+
+const { User, OtpToken, Faculty, University, sequelize } = require("../../../models");
 const {
   jwt: jwtConfig,
   email: emailConfig,
 } = require("../../../config/config");
-const { ROLES, STAFF_SIGNUP_ROLES } = require("../constants/roles");
-const { isEmailAllowed } = require("../helpers/emailDomain");
+const { ROLES } = require("../constants/roles");
 
 // ==================== Constants ====================
 
@@ -28,11 +28,9 @@ const createTransporter = () => {
   });
 };
 
-const getOtpExpiry = () => {
+const getOtpExpirySeconds = () => {
     return parseInt(process.env.OTP_EXPIRY_SECONDS, 10) || 300;
 };
-
-
 
 const hashPassword = (password) => bcrypt.hash(password, 10);
 
@@ -61,7 +59,7 @@ const validatePassword = (password) => {
   }
 };
 
-// Shared cooldown check - prevents spamming OTP requests for the same identifier
+// Shared cooldown check
 const checkCooldown = async (whereClause) => {
   const recentToken = await OtpToken.findOne({
     where: whereClause,
@@ -143,8 +141,6 @@ const forgotPassword = async (email) => {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ where: { email: normalizedEmail } });
 
-  // Always return the same message whether or not the account exists -
-  // prevents using this endpoint to discover valid student/staff emails.
   const genericResponse = {
     success: true,
     message: "If this account exists, a reset code has been sent.",
@@ -214,7 +210,7 @@ const resetPassword = async (email, otp_code, new_password) => {
 };
 
 // =========================================================================
-// LOGIN (shared by all roles: student, officer, manager, admin, super_admin)
+// LOGIN (shared by all roles)
 // =========================================================================
 
 const login = async (email, password) => {
@@ -224,13 +220,7 @@ const login = async (email, password) => {
   if (!user) {
     throw new Error("Invalid email or password.");
   }
-
-  // Account was created by an Admin but the person hasn't completed
-  // registration yet (no password set).
-  if (!user.password_hash) {
-    throw new Error("Please complete your registration first.");
-  }
-
+  
   const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) {
     throw new Error("Invalid email or password.");
@@ -252,6 +242,5 @@ module.exports = {
   // password reset
   forgotPassword,
   resetPassword,
-  // shared
   login,
 };

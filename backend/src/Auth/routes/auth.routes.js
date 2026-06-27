@@ -14,6 +14,9 @@ authRoutes.post("/admin/register", submitAdminRequest);
 authRoutes.post("/forgot-password", forgotPassword);
 authRoutes.post("/reset-password", resetPassword);
 
+// =========================================================
+// SHARED ENTRY POINT (Login Only)
+// =========================================================
 authRoutes.post("/login", login);
 
 module.exports = authRoutes;

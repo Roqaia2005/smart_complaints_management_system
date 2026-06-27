@@ -27,49 +27,26 @@ const upload = multer({
 adminRoutes.use(authenticate, isAdmin);
 
 // =========================================================
-// STUDENTS
+// UNIFIED USER PROVISIONING 
 // =========================================================
-adminRoutes.post("/students", adminController.createStudentController);
+
+// إنشاء مستخدم جديد يدوياً (الأدمن بيحدد الـ role والـ password في الـ Body)
+adminRoutes.post("/users/create", adminController.createUserController);
+
+// معاينة ملف الـ CSV الموحد قبل التأكيد
 adminRoutes.post(
-  "/students/import/preview",
+  "/users/import/preview",
   upload.single("file"),
-  adminController.importStudentsPreviewController,
-);
-adminRoutes.post(
-  "/students/import/confirm",
-  adminController.confirmImportStudentsController,
+  adminController.importUsersPreviewController
 );
 
-// =========================================================
-// OFFICERS
-// =========================================================
-adminRoutes.post("/officers", adminController.createOfficerController);
-adminRoutes.post(
-  "/officers/import/preview",
-  upload.single("file"),
-  adminController.importOfficersPreviewController,
-);
-adminRoutes.post(
-  "/officers/import/confirm",
-  adminController.confirmImportOfficersController,
-);
+// تأكيد الحفظ النهائي لبيانات الـ CSV في الداتا بيز
+adminRoutes.post("/users/import/confirm", adminController.confirmImportUsersController);
+
+// تفعيل أو إلغاء صلاحية الـ Manager للموظفين
 adminRoutes.patch(
   "/officers/:id/manager-flag",
-  adminController.setOfficerManagerFlagController,
-);
-
-// =========================================================
-// MANAGERS
-// =========================================================
-adminRoutes.post("/managers", adminController.createManagerController);
-adminRoutes.post(
-  "/managers/import/preview",
-  upload.single("file"),
-  adminController.importManagersPreviewController,
-);
-adminRoutes.post(
-  "/managers/import/confirm",
-  adminController.confirmImportManagersController,
+  adminController.setOfficerManagerFlagController
 );
 
 // =========================================================

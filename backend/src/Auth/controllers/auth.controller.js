@@ -1,5 +1,4 @@
 const authService = require("../services/auth.service");
-const { STAFF_SIGNUP_ROLES } = require("../constants/roles");
 
 
 
@@ -74,9 +73,7 @@ const login = async (req, res) => {
   } catch (error) {
     let status = 401;
 
-    if (error.message === "Please complete your registration first.") {
-      status = 403;
-    } else if (error.message.includes("deactivated")) {
+    if (error.message.includes("deactivated")) {
       status = 403;
     }
 
