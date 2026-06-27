@@ -34,6 +34,7 @@ export interface Complaint {
   resolution_text?: string;
   resolved_at?: string;
   created_at: string;
+  createdAt:string;
   updated_at?: string;
   Category?: { id: number; name: string };
   User?: {
@@ -106,6 +107,32 @@ export interface OverviewData {
   appealed: number;
 }
 
+export interface ManagerDashboardData {
+  totalComplaints: number;
+  resolutionRate: string;
+  slaBreachRate: string;
+  appealRate: string;
+  statusBreakdown: {
+    pending: number;
+    in_progress: number;
+    resolved: number;
+    appealed: number;
+  };
+  officerPerformance: Array<{
+    id: number;
+    full_name: string;
+    totalResolved: number;
+    avgResolutionTime: string;
+    slaCompliance: string;
+  }>;
+}
+
+export interface ManagerDashboardResponse {
+  success: boolean;
+  message: string;
+  data: ManagerDashboardData;
+}
+
 // ── Manager: Department Performance ──────────────────────────────────────
 export interface DepartmentPerformance {
   name: string;
@@ -114,14 +141,26 @@ export interface DepartmentPerformance {
   avg_hours: number;
 }
 
+export interface DepartmentPerformanceResponse {
+  departments: DepartmentPerformance[];
+}
+
 // ── Manager: Heatmap ──────────────────────────────────────────────────────
 export interface HeatmapItem {
   label: string;
   count: number;
 }
 
+export interface HeatmapResponse {
+  heatmap: HeatmapItem[];
+}
+
 // ── Manager: Reports ──────────────────────────────────────────────────────
 export interface ReportsResponse {
   complaints: Complaint[];
   total_count: number;
+}
+
+export interface TopIssuesResponse {
+  top_issues: Array<Record<string, unknown> | string>;
 }

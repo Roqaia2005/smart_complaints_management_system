@@ -45,7 +45,7 @@ export const officerApi = {
     backendApi.get('/officer/complaints', { params: { category_id } }),
 
   getComplaintDetails: (id: number | string) =>
-    backendApi.get(`/officer/complaints/${id}`),
+    backendApi.get(`/officer/complaints/details/${id}`),
 
   updateComplaintStatus: (id: number | string, status: string, resolution_text?: string) =>
     backendApi.patch(`/officer/complaints/${id}/status`, { status, resolution_text }),
@@ -59,8 +59,8 @@ export const officerApi = {
 
 // ── Manager ───────────────────────────────────────────────────────────────
 export const managerApi = {
-  getOverview: (from?: string) =>
-    backendApi.get('/manager/overview', { params: from ? { from } : {} }),
+  getOverview: (category_id?: number | string) =>
+    backendApi.get('/manager/dashboard', { params: category_id ? { category_id } : {} }),
 
   getDepartmentPerformance: () =>
     backendApi.get('/manager/department-performance'),
@@ -68,10 +68,10 @@ export const managerApi = {
   getHeatmap: (dimension: 'category' | 'location' | 'time' | 'department') =>
     backendApi.get('/manager/heatmap', { params: { dimension } }),
 
-  getReports: (filters?: { from?: string; to?: string; category_id?: number; status?: string }) =>
+  getReports: (filters?: { from?: string; to?: string; category_id?: number | string; status?: string }) =>
     backendApi.get('/manager/reports', { params: filters }),
 
-  getTopIssues: (category_id: number) =>
+  getTopIssues: (category_id: number | string) =>
     backendApi.get(`/manager/top-issues/${category_id}`),
 };
 

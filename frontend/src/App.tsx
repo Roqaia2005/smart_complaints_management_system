@@ -19,6 +19,7 @@ import ManagerOverview from './pages/manager/ManagerOverview';
 import ManagerHeatmap from './pages/manager/ManagerHeatmap';
 import ManagerRecommendations from './pages/manager/ManagerRecommendations';
 import ManagerReports from './pages/manager/ManagerReports';
+import ManagerTopIssues from './pages/manager/ManagerTopIssues';
 
 // Admin Pages
 import AdminCategories from './pages/admin/AdminCategories';
@@ -29,12 +30,12 @@ import AdminPriorityRules from './pages/admin/AdminPriorityRules';
 import DashboardPage from './pages/DashboardPage';
 
 // Simple placeholders for missing pages
-const TopIssues = () => <div className="p-8"><h1>Top Issues Page</h1><p className="text-muted-foreground">Coming soon...</p></div>;
 const AdminRegulations = () => <div className="p-8"><h1>Admin Regulations</h1><p className="text-muted-foreground">Coming soon...</p></div>;
 const AdminAuditLogs = () => <div className="p-8"><h1>Admin Audit Logs</h1><p className="text-muted-foreground">Coming soon...</p></div>;
 const AdminInsights = () => <div className="p-8"><h1>Admin Insights</h1><p className="text-muted-foreground">Coming soon...</p></div>;
 
 import { useThemeStore } from './store/themeStore';
+import AnalyticsPage from './pages/manager/Analytics';
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -71,7 +72,8 @@ function App() {
           <Route path="/manager/heatmap" element={<ManagerHeatmap />} />
           <Route path="/manager/recommendations" element={<ManagerRecommendations />} />
           <Route path="/manager/reports" element={<ManagerReports />} />
-          <Route path="/manager/top-issues" element={<TopIssues />} />
+          <Route path="/manager/top-issues" element={<ManagerTopIssues />} />
+          <Route path="/manager/analytics" element={<AnalyticsPage />} />
           
           {/* Admin Routes */}
           <Route path="/admin/categories" element={<AdminCategories />} />
