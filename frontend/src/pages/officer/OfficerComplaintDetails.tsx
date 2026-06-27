@@ -185,6 +185,7 @@ export default function OfficerComplaintDetails() {
             <p className="text-slate-500 font-medium">Submitted on {new Date(complaint.createdAt).toLocaleString()}</p>
           </div>
 
+
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900/40">
             <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -208,6 +209,22 @@ export default function OfficerComplaintDetails() {
               </div>
             </CardContent>
           </Card>
+            {complaint.ai_summary && (
+            <Card className="border-blue-100 dark:border-blue-900 ">
+              <CardHeader className="flex flex-row items-center gap-2 border-b border-blue-100 dark:border-blue-900">
+                <Brain size={20} className="text-blue-600" />
+                <CardTitle className="text-sm font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest">
+                  AI Diagnostic Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div>
+                  <p className="text-[10px] font-bold text-blue-400 uppercase mb-1">Context Summary</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{complaint.ai_summary}"</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40">
             <CardHeader className="border-b border-slate-100 dark:border-slate-800">
@@ -235,22 +252,7 @@ export default function OfficerComplaintDetails() {
             </CardContent>
           </Card>
 
-          {complaint.ai_summary && (
-            <Card className="border-blue-100 dark:border-blue-900 bg-blue-50/20 dark:bg-blue-955/10">
-              <CardHeader className="flex flex-row items-center gap-2 border-b border-blue-100 dark:border-blue-900">
-                <Brain size={20} className="text-blue-600" />
-                <CardTitle className="text-sm font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest">
-                  AI Diagnostic Report
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div>
-                  <p className="text-[10px] font-bold text-blue-400 uppercase mb-1">Context Summary</p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{complaint.ai_summary}"</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        
 
           {/* Appeal details */}
           {complaint.Appeal && (

@@ -15,7 +15,8 @@ import {
   Lightbulb,
   FileSearch,
   Lock,
-  User
+  User,
+  ChartBar
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { WorkflowRole } from '../../types/workflow';
@@ -53,7 +54,8 @@ const navItems: NavItem[] = [
 
   // Manager
   { label: 'Overview', icon: Activity, path: '/manager/overview', roles: ['manager'] },
-  { label: 'Heatmap', icon: Map, path: '/manager/heatmap', roles: ['manager'] },
+  { label: 'Dashboard', icon: ChartBar, path: '/manager/analytics', roles: ['manager'] },
+  { label: 'Analytics', icon: Map, path: '/manager/heatmap', roles: ['manager'] },
   { label: 'Recommendations', icon: Lightbulb, path: '/manager/recommendations', roles: ['manager'] },
   { label: 'Reports', icon: FileText, path: '/manager/reports', roles: ['manager'] },
   { label: 'Top Issues', icon: ListTodo, path: '/manager/top-issues', roles: ['manager'] },

@@ -42,12 +42,15 @@ interface DashboardStats {
 export default function OfficerDashboard() {
   const [filter, setFilter]         = useState('all');
   const [search, setSearch]         = useState('');
+  const [dateFrom, setDateFrom]     = useState('');
+  const [dateTo, setDateTo]         = useState('');
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [categories, setCategories] = useState<BackendCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(1);
   const [stats, setStats]           = useState<DashboardStats | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
+
 
   // Fetch Categories on Mount
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function OfficerDashboard() {
       .then(([complaintsRes, dashboardRes]) => {
         setComplaints(complaintsRes.data.complaints || []);
         if (dashboardRes.data.success) {
+          console.log('Dashboard data:', dashboardRes.data.data);
           setStats(dashboardRes.data.data);
         }
       })
@@ -93,7 +97,19 @@ export default function OfficerDashboard() {
   const filtered = complaints.filter(c => {
     const matchStatus = filter === 'all' || c.status === filter;
     const matchSearch = !search || c.problem.toLowerCase().includes(search.toLowerCase()) || c.id.toString().includes(search);
-    return matchStatus && matchSearch;
+
+    const complaintDate = c.created_at ? new Date(c.created_at) : null;
+    const hasValidComplaintDate = complaintDate && !Number.isNaN(complaintDate.getTime());
+
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const to = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
+
+    const matchDate = !hasValidComplaintDate || (
+      (!from || complaintDate! >= from) &&
+      (!to || complaintDate! <= to)
+    );
+
+    return matchStatus && matchSearch && matchDate;
   });
 
   return (
@@ -167,6 +183,36 @@ export default function OfficerDashboard() {
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="h-10 w-36 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                aria-label="Filter from date"
+              />
+              <span className="text-xs text-slate-400">to</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="h-10 w-36 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                aria-label="Filter to date"
+              />
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom('');
+                    setDateTo('');
+                  }}
+                  className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
             {['all', 'pending', 'in_progress', 'resolved', 'appealed'].map(t => (
               <Button
                 key={t}
