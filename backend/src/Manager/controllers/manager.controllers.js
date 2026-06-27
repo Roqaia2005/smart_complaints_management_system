@@ -43,7 +43,10 @@ exports.getDashboardData = async (req, res) => {
 // =========================================================
 exports.departmentPerformanceController = async (req, res) => {
     try {
-        const data = await departmentPerformanceService();
+        // بنستقبل الـ params المبعوتة في الـ URL زي (from, to, category_id, status)
+        const filters = req.query; 
+        
+        const data = await departmentPerformanceService(filters);
         return res.status(200).json(data);
     } catch (error) {
         return res.status(500).json({
@@ -69,34 +72,14 @@ exports.heatmapController = async (req, res) => {
     }
 };
 
-// =========================================================
-// 5. AI Recommendations
-// =========================================================
 
-
-// =========================================================
-// 7. Reports
-// =========================================================
-exports.reportsController = async (req, res) => {
-    try {
-        const { from, to, category_id, status } = req.query;
-        const data = await reportsService({ from, to, category_id, status });
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-// =========================================================
-// 8. Top Issues per Category
-// =========================================================
 exports.topIssuesController = async (req, res) => {
     try {
-        const { category_id } = req.params;
-        const data = await topIssuesService(category_id);
+        // بنقرأ الـ category_id من الـ Query String دلوقتي
+        const { category_id } = req.query;
+        
+        const data = await topIssuesService(category_id || null);
+        
         return res.status(200).json(data);
     } catch (error) {
         return res.status(500).json({

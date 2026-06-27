@@ -237,7 +237,6 @@ const login = async (email, password) => {
 
 module.exports = {
   // student
-  checkStudent,
   submitAdminRequest,
   // password reset
   forgotPassword,

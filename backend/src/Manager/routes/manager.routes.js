@@ -13,12 +13,13 @@ const {
 } = require('../controllers/manager.controllers');
 
 const managerRoutes = express.Router();
-//managerRoutes.use(authenticate, isManager);
+managerRoutes.use(authenticate, isManager);
 
 managerRoutes.get('/dashboard', getDashboardData);
 managerRoutes.get('/department-performance', departmentPerformanceController);
 managerRoutes.get('/heatmap', heatmapController);
-managerRoutes.get('/reports', reportsController);
-managerRoutes.get('/top-issues/:category_id', topIssuesController);
+
+// مسار نظيف وصافي بدون علامات استفهام تزعل المكتبة
+managerRoutes.get('/top-issue', topIssuesController);
 
 module.exports = managerRoutes;
