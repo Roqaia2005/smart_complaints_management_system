@@ -16,12 +16,13 @@ import {
   FileSearch,
   Lock,
   User,
-  ChartBar
+  ChartBar,
+  Shield
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { WorkflowRole } from '../../types/workflow';
 import { useAuthStore } from '../../store/authStore';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar as SidebarUI,
   SidebarContent,
@@ -42,44 +43,55 @@ interface NavItem {
   path: string;
   roles: WorkflowRole[];
 }
-
+ 
 const navItems: NavItem[] = [
   // Student
-  { label: 'UniResolve AI', icon: MessageSquare, path: '/student/chat', roles: ['student'] },
-  { label: 'My Complaints', icon: History, path: '/student/complaints', roles: ['student'] },
-
+  { label: 'UniResolve AI',   icon: MessageSquare,   path: '/student/chat',              roles: ['student'] },
+  { label: 'My Complaints',   icon: History,          path: '/student/complaints',        roles: ['student'] },
+ 
   // Officer
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/officer/dashboards', roles: ['officer'] },
-  { label: 'Appeals', icon: ShieldAlert, path: '/officer/appeals', roles: ['officer'] },
-
+  { label: 'Dashboard',       icon: LayoutDashboard,  path: '/officer/dashboards',        roles: ['officer'] },
+  { label: 'Appeals',         icon: ShieldAlert,      path: '/officer/appeals',           roles: ['officer'] },
+ 
   // Manager
-  { label: 'Overview', icon: Activity, path: '/manager/overview', roles: ['manager'] },
-  { label: 'Dashboard', icon: ChartBar, path: '/manager/analytics', roles: ['manager'] },
-  { label: 'Analytics', icon: Map, path: '/manager/heatmap', roles: ['manager'] },
-  { label: 'Recommendations', icon: Lightbulb, path: '/manager/recommendations', roles: ['manager'] },
-  { label: 'Reports', icon: FileText, path: '/manager/reports', roles: ['manager'] },
-  { label: 'Top Issues', icon: ListTodo, path: '/manager/top-issues', roles: ['manager'] },
-
+  { label: 'Overview',        icon: Activity,         path: '/manager/overview',          roles: ['manager'] },
+  { label: 'Dashboard',       icon: ChartBar,         path: '/manager/analytics',         roles: ['manager'] },
+  { label: 'Analytics',       icon: Map,              path: '/manager/heatmap',           roles: ['manager'] },
+  { label: 'Recommendations', icon: Lightbulb,        path: '/manager/recommendations',   roles: ['manager'] },
+  { label: 'Reports',         icon: FileText,         path: '/manager/reports',           roles: ['manager'] },
+  { label: 'Top Issues',      icon: ListTodo,         path: '/manager/top-issues',        roles: ['manager'] },
+ 
   // Admin
-  { label: 'Categories', icon: ListTodo, path: '/admin/categories', roles: ['admin'] },
-  { label: 'Users', icon: Users, path: '/admin/users', roles: ['admin'] },
-  { label: 'Regulations', icon: FileSearch, path: '/admin/regulations', roles: ['admin'] },
-  { label: 'Priority Rules', icon: Lock, path: '/admin/priority-rules', roles: ['admin'] },
-  { label: 'Audit Logs', icon: FileSearch, path: '/admin/audit-logs', roles: ['admin'] },
-  { label: 'Insights', icon: BarChart3, path: '/admin/insights', roles: ['admin'] },
+  { label: 'Categories',      icon: ListTodo,         path: '/admin/categories',          roles: ['admin'] },
+  { label: 'Users',           icon: Users,            path: '/admin/users',               roles: ['admin'] },
+  { label: 'Regulations',     icon: FileSearch,       path: '/admin/regulations',         roles: ['admin'] },
+  { label: 'Priority Rules',  icon: Lock,             path: '/admin/priority-rules',      roles: ['admin'] },
+  { label: 'Audit Logs',      icon: FileSearch,       path: '/admin/audit-logs',          roles: ['admin'] },
+  { label: 'Insights',        icon: BarChart3,        path: '/admin/insights',            roles: ['admin'] },
+ 
+  // Super Admin
+  { label: 'Requests',        icon: Shield,           path: '/superadmin/requests',       roles: ['super_admin'] },
+  { label: 'All Admins',      icon: Users,            path: '/superadmin/admins',         roles: ['super_admin'] },
 ];
-
+ 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
-  const [role, setrole] = useState('manager')
-
-  const filteredNavItems = navItems.filter(item =>
-    item.roles.includes(role as WorkflowRole)
-        //item.roles.includes((user?.role || 'student') as WorkflowRole)
-
+  const isCollapsed = state === 'collapsed';
+ 
+  const role = (user?.role ?? 'student') as WorkflowRole;
+ 
+  const filteredNavItems = navItems.filter((item) =>
+    item.roles.includes(role)
   );
+ 
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <SidebarUI className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-4">
@@ -185,11 +197,11 @@ export function Sidebar() {
           )}
           {state === "expanded" && (
             <button
-              onClick={logout}
+          onClick={handleLogout}
               className="ml-auto size-8 flex items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
               title="Logout"
             >
-              <LogOut className="size-4" />
+          <LogOut size={16} className="shrink-0 opacity-60 group-hover:opacity-100" />
             </button>
           )}
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
-import LoginPage from './pages/auth/LoginPage';
+import AuthPages from './pages/auth/AuthPages';
 import RegisterPage from './pages/auth/RegisterPage';
 
 // Student Pages
@@ -23,19 +23,19 @@ import ManagerTopIssues from './pages/manager/ManagerTopIssues';
 
 // Admin Pages
 import AdminCategories from './pages/admin/AdminCategories';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminPriorityRules from './pages/admin/AdminPriorityRules';
 
 // Shared / Dashboard
 import DashboardPage from './pages/DashboardPage';
 
-// Simple placeholders for missing pages
-const AdminRegulations = () => <div className="p-8"><h1>Admin Regulations</h1><p className="text-muted-foreground">Coming soon...</p></div>;
-const AdminAuditLogs = () => <div className="p-8"><h1>Admin Audit Logs</h1><p className="text-muted-foreground">Coming soon...</p></div>;
-const AdminInsights = () => <div className="p-8"><h1>Admin Insights</h1><p className="text-muted-foreground">Coming soon...</p></div>;
 
 import { useThemeStore } from './store/themeStore';
 import AnalyticsPage from './pages/manager/Analytics';
+import AuditLogsPage from './pages/admin/AuditLogsPage';
+import InsightsPage from './pages/admin/InsightsPage';
+import PriorityRulesPage from './pages/admin/PriorityRulesPage';
+import RegulationsPage from './pages/admin/RegulationsPage';
+import UsersPage from './pages/admin/UsersPage';
+import UsersImportPage from './pages/admin/UsersImportPage';
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -51,8 +51,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<AuthPages />} />
         
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />
@@ -77,11 +76,12 @@ function App() {
           
           {/* Admin Routes */}
           <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/regulations" element={<AdminRegulations />} />
-          <Route path="/admin/priority-rules" element={<AdminPriorityRules />} />
-          <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
-          <Route path="/admin/insights" element={<AdminInsights />} />
+          <Route path="/admin/users" element={<UsersPage />} />
+          <Route path="/admin/users/import" element={<UsersImportPage />} />
+          <Route path="/admin/regulations" element={<RegulationsPage />} />
+          <Route path="/admin/priority-rules" element={<PriorityRulesPage />} />
+          <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+          <Route path="/admin/insights" element={<InsightsPage />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

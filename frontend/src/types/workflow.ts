@@ -1,4 +1,4 @@
-export type WorkflowRole = 'student' | 'officer' | 'manager' | 'admin';
+export type WorkflowRole = 'student' | 'officer' | 'manager' | 'admin'|'super_admin';
 
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved' | 'appealed';
 

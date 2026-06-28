@@ -1,18 +1,5 @@
 import backendApi from './backendApi';
 
-// ── Auth ──────────────────────────────────────────────────────────────────
-export const authApi = {
-  login: (email: string, password: string) =>
-    backendApi.post('/auth/login', { email, password }),
-  register: (student_number: string, password: string) =>
-    backendApi.post('/auth/register', { student_number, password }),
-  checkStudent: (student_number: string) =>
-    backendApi.post('/auth/check-student', { student_number }),
-  sendOtp: (student_number: string) =>
-    backendApi.post('/auth/send-otp', { student_number }),
-  verifyOtp: (student_number: string, otp_code: string) =>
-    backendApi.post('/auth/verify-otp', { student_number, otp_code }),
-};
 
 // ── Student / Complaints ──────────────────────────────────────────────────
 export const studentApi = {
@@ -76,35 +63,190 @@ export const managerApi = {
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────
-export const adminApi = {
-  // Categories
-  getCategories: () => backendApi.get('/admin/categories'),
-  addCategory: (data: { name: string; description?: string; sla_hours?: number; keywords?: string; responsible_id?: number }) =>
-    backendApi.post('/admin/categories', data),
-  updateCategory: (id: number, data: Partial<{ name: string; description: string; sla_hours: number; is_active: boolean }>) =>
-    backendApi.patch(`/admin/categories/${id}`, data),
-  deleteCategory: (id: number) => backendApi.delete(`/admin/categories/${id}`),
 
-  // Users
-  getUsers: () => backendApi.get('/admin/users'),
-  addUser: (data: { full_name: string; email: string; password: string; role: string }) =>
-    backendApi.post('/admin/users', data),
-  updateUser: (id: number, data: Partial<{ full_name: string; email: string; role: string; is_active: boolean }>) =>
-    backendApi.patch(`/admin/users/${id}`, data),
-  deleteUser: (id: number) => backendApi.delete(`/admin/users/${id}`),
-
-  // Regulations
-  getRegulations: () => backendApi.get('/admin/regulations'),
-  addRegulation: (data: { 'article number': string; content: string; type: string; faculty_id?: number }) =>
-    backendApi.post('/admin/regulations', data),
-  deleteRegulation: (id: number) => backendApi.delete(`/admin/regulations/${id}`),
-
-  // Priority Rules
-  getPriorityRules: () => backendApi.get('/admin/priority-rules'),
-  savePriorityRule: (data: { 'priority level': number; description: string; examples: string[] }) =>
-    backendApi.post('/admin/priority-rules', data),
-
-  // Audit Logs
-  getAuditLogs: (filters?: { user_id?: number; entity_type?: string; from?: string; to?: string }) =>
-    backendApi.get('/admin/audit-logs', { params: filters }),
+// Shared role-specific payload shapes for createUser
+type StudentPayload = {
+  role: 'student';
+  full_name: string;
+  email: string;
+  password: string;
+  faculty_id: number;
+  student_number: string;
+  department?: string;
+  academic_year?: number;
 };
+
+type OfficerPayload = {
+  role: 'officer';
+  full_name: string;
+  email: string;
+  password: string;
+  faculty_id: number;
+  officer_title?: string;
+  category_ids: number[];
+  is_also_manager?: boolean;
+  manager_title?: string;
+};
+
+type ManagerPayload = {
+  role: 'manager';
+  full_name: string;
+  email: string;
+  password: string;
+  faculty_id: number;
+  manager_title: string;
+};
+
+export type CreateUserPayload = StudentPayload | OfficerPayload | ManagerPayload;
+
+export const adminApi = {
+  // ── Categories ──────────────────────────────────────────────────────────
+  getCategories: () =>
+    backendApi.get('/admin/categories'),
+
+  addCategory: (data: {
+    name: string;
+    description?: string;
+    sla_hours?: number;
+    faculty_id?: number;
+    keywords?: string;           // comma-separated, e.g. "schedule,timing"
+    officer_ids?: number[];      // replaces the old responsible_id
+  }) => backendApi.post('/admin/categories', data),
+
+  updateCategory: (
+    id: number,
+    data: Partial<{ name: string; description: string; sla_hours: number; is_active: boolean }>,
+  ) => backendApi.patch(`/admin/categories/${id}`, data),
+
+  deleteCategory: (id: number) =>
+    backendApi.delete(`/admin/categories/${id}`),
+
+  // ── Users — General Management ──────────────────────────────────────────
+  getUsers: () =>
+    backendApi.get('/admin/users'),
+
+  // Replaces the old addUser — now hits /users/create with a unified role-based payload
+  createUser: (data: CreateUserPayload) =>
+    backendApi.post('/admin/users/create', data),
+
+  updateUser: (
+    id: number,
+    data: Partial<{
+      full_name: string;
+      email: string;
+      role: string;
+      is_active: boolean;
+      officer_title: string;
+      manager_title: string;
+      is_also_manager: boolean;
+    }>,
+  ) => backendApi.patch(`/admin/users/${id}`, data),
+
+  deleteUser: (id: number) =>
+    backendApi.delete(`/admin/users/${id}`),
+
+  // ── Users — CSV Bulk Import ──────────────────────────────────────────────
+  // Step 1: upload the CSV; returns { import_id, preview: { total, valid, invalid, errors } }
+  importUsersPreview: (file: File, role: 'student' | 'officer' | 'manager', faculty_id: number) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('role', role);
+    form.append('targetRole', role);
+    form.append('faculty_id', String(faculty_id));
+    return backendApi.post('/admin/users/import/preview', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Step 2: confirm with the import_id returned from preview
+  confirmImportUsers: (import_id: string) =>
+    backendApi.post('/admin/users/import/confirm', { import_id }),
+
+  // ── Officers ────────────────────────────────────────────────────────────
+  setOfficerManagerFlag: (
+    id: number,
+    data: { is_also_manager: boolean; manager_title?: string },
+  ) => backendApi.patch(`/admin/officers/${id}/manager-flag`, data),
+
+  // ── Regulations ─────────────────────────────────────────────────────────
+  getRegulations: () =>
+    backendApi.get('/admin/regulations'),
+
+  addRegulation: (data: {
+    'article number': string;
+    content: string;
+    type: string;
+    faculty_id?: number;
+  }) => backendApi.post('/admin/regulations', data),
+
+  deleteRegulation: (id: number) =>
+    backendApi.delete(`/admin/regulations/${id}`),
+
+  // ── Priority Rules ───────────────────────────────────────────────────────
+  getPriorityRules: () =>
+    backendApi.get('/admin/priority-rules'),
+
+  savePriorityRule: (data: {
+    'priority level': number;
+    description: string;
+    examples: string[];
+  }) => backendApi.post('/admin/priority-rules', data),
+
+  // ── Audit Logs ───────────────────────────────────────────────────────────
+  getAuditLogs: (filters?: {
+    user_id?: number;
+    entity_type?: string;
+    from?: string;   // ISO date string
+    to?: string;     // ISO date string
+  }) => backendApi.get('/admin/audit-logs', { params: filters }),
+};
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+export const authApi = {
+  login: (data: { email: string; password: string }) =>
+    backendApi.post('/auth/login', data),
+
+  registerAdmin: (data: {
+    full_name: string;
+    email: string;
+    password: string;
+    university_name: string;
+    faculty_name: string;
+    email_domain: string;
+    supporting_document: string;
+  }) => backendApi.post('/auth/admin/register', data),
+
+  forgotPassword: (data: { email: string }) =>
+    backendApi.post('/auth/forgot-password', data),
+
+  resetPassword: (data: { token: string; password: string }) =>
+    backendApi.post('/auth/reset-password', data),
+};
+
+// ── Super Admin ───────────────────────────────────────────────────────────
+export const superAdminApi = {
+  // Registration Requests
+  getAllRequests: () =>
+    backendApi.get('/superadmin/requests'),
+
+  getPendingRequests: () =>
+    backendApi.get('/superadmin/requests/pending'),
+
+  getRequest: (requestId: number) =>
+    backendApi.get(`/superadmin/requests/${requestId}`),
+
+  approveRequest: (requestId: number) =>
+    backendApi.patch(`/superadmin/requests/${requestId}/approve`),
+
+  rejectRequest: (requestId: number, data: { rejection_reason: string }) =>
+    backendApi.patch(`/superadmin/requests/${requestId}/reject`, data),
+
+  // Admin Management
+  getAllAdmins: () =>
+    backendApi.get('/superadmin/admins'),
+
+  deleteAdmin: (adminId: number) =>
+    backendApi.delete(`/superadmin/admins/${adminId}`),
+};
+
+

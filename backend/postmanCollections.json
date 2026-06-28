@@ -15,6 +15,10 @@
 						"method": "POST",
 						"header": [
 							{
+								"key": "Authorization",
+								"value": "Bearer {{studentToken}}"
+							},
+							{
 								"key": "Content-Type",
 								"value": "application/json",
 								"type": "text"
@@ -43,7 +47,12 @@
 					"name": "Get Student Complaints",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{studentToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/student/complaints/student/:student_id",
 							"host": [
@@ -72,7 +81,12 @@
 					"name": "Get Complaint Details",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{studentToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/student/complaints/:id",
 							"host": [
@@ -101,6 +115,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{studentToken}}"
+							},
 							{
 								"key": "Content-Type",
 								"value": "application/json",
@@ -144,7 +162,12 @@
 					"name": "1. Dashboard Stats",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{officerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/officer/dashboard?category_id=all&officer_id=36",
 							"host": [
@@ -179,7 +202,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer {{token}}",
+								"value": "Bearer {{officerToken}}",
 								"type": "text"
 							}
 						],
@@ -210,7 +233,12 @@
 					"name": "3. Get Complaint Details",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{officerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/officer/complaints/details/10",
 							"host": [
@@ -233,6 +261,10 @@
 					"request": {
 						"method": "PATCH",
 						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{officerToken}}"
+							},
 							{
 								"key": "Content-Type",
 								"value": "application/json",
@@ -264,7 +296,12 @@
 					"name": "5. Get Appealed Complaints",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{officerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/officer/appeals?category_id=1",
 							"host": [
@@ -290,7 +327,12 @@
 					"name": "6. Mark Appeal as Reviewed",
 					"request": {
 						"method": "PATCH",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{officerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/officer/appeals/5/review",
 							"host": [
@@ -317,7 +359,12 @@
 					"name": "1. Manager Dashboard (with Slicer)",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/manager/dashboard?category_id=3",
 							"host": [
@@ -344,7 +391,12 @@
 					"name": "2. Department Performance",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/manager/department-performance",
 							"host": [
@@ -364,7 +416,12 @@
 					"name": "3. Heatmap Data",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
 						"url": {
 							"raw": "{{baseUrl}}/api/manager/heatmap?dimension=time",
 							"host": [
@@ -388,588 +445,439 @@
 					"response": []
 				},
 				{
-    "name": "5. Top Issues per Category",
-    "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-            "raw": "{{baseUrl}}/api/manager/top-issue?category_id=2",
-            "host": [
-                "{{baseUrl}}"
-            ],
-            "path": [
-                "api",
-                "manager",
-                "top-issue"
-            ],
-            "query": [
-                {
-                    "key": "category_id",
-                    "value": "2",
-                    "description": "Optional category ID to filter the top issues. Leave unchecked or delete for global top issues."
-                }
-            ]
-        },
-        "description": "Retrieves the most recurring and critical issues. The category_id is optional."
-    },
-    "response": []
-}
+					"name": "5. Top Issues per Category",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{managerToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/manager/top-issue?category_id=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"manager",
+								"top-issue"
+							],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "2",
+									"description": "Optional category ID to filter the top issues. Leave unchecked or delete for global top issues."
+								}
+							]
+						},
+						"description": "Retrieves the most recurring and critical issues. The category_id is optional."
+					},
+					"response": []
+				}
 			]
 		},
 		{
-			"name": "Admin Endpoints",
-			"item": [
-				{
-					"name": "Students Management",
-					"item": [
-						{
-							"name": "Create Single Student",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"student_id\": 20230001,\n  \"faculty_id\": 1,\n  \"full_name\": \"Ahmed Ali\",\n  \"email\": \"ahmed.ali@university.edu.eg\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/students",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"students"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Import Students Preview (CSV)",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "file",
-											"type": "file",
-											"src": [],
-											"description": "Select the students.csv file here"
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/students/import/preview",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"students",
-										"import",
-										"preview"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Confirm Students Import",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"users\": [\n    { \"student_id\": 20230001, \"full_name\": \"Ahmed Ali\", \"email\": \"ahmed@univ.edu\" },\n    { \"student_id\": 20230002, \"full_name\": \"Sara Amr\", \"email\": \"sara@univ.edu\" }\n  ]\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/students/import/confirm",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"students",
-										"import",
-										"confirm"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Officers Management",
-					"item": [
-						{
-							"name": "Create Single Officer",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"full_name\": \"Officer Mohamed\",\n  \"email\": \"officer.m@univ.edu\",\n  \"officer_title\": \"Academic Counselor\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/officers",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"officers"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Import Officers Preview (CSV)",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "file",
-											"type": "file",
-											"src": []
-										}
-									]
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/officers/import/preview",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"officers",
-										"import",
-										"preview"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Confirm Officers Import",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"officers\": []\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/officers/import/confirm",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"officers",
-										"import",
-										"confirm"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Set Officer Manager Flag",
-							"request": {
-								"method": "PATCH",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"is_also_manager\": true,\n  \"manager_title\": \"Vice Dean of Student Affairs\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/officers/12/manager-flag",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"officers",
-										"12",
-										"manager-flag"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Categories CRUD",
-					"item": [
-						{
-							"name": "Get All Categories",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Category",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Schedules Complaints\",\n  \"description\": \"Issues related to class timings and lecture conflicts\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Patch Category",
-							"request": {
-								"method": "PATCH",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Updated Schedules Complaints Name\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories/1",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories",
-										"1"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Category",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/categories/1",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"categories",
-										"1"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "General User Management",
-					"item": [
-						{
-							"name": "Get All Users",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Patch User (Activate/Deactivate/Update)",
-							"request": {
-								"method": "PATCH",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"is_active\": false\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/5",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										"5"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete User",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/users/5",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"users",
-										"5"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Regulations",
-					"item": [
-						{
-							"name": "Get Regulations",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Regulation",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"title\": \"Bylaw Rule 42\",\n  \"content\": \"Complaints must be filed within 14 days of the incident.\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Regulation",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/regulations/3",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"regulations",
-										"3"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Priority Rules & Audit",
-					"item": [
-						{
-							"name": "Get Priority Rules",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/priority-rules",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"priority-rules"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Save/Update Priority Rule",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"rule_name\": \"Senior Student Escalation\",\n  \"weight\": 5,\n  \"conditions\": \"{ \\\"level\\\": 4 }\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/priority-rules",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"priority-rules"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get System Audit Logs",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseUrl}}/api/admin/audit-logs",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api",
-										"admin",
-										"audit-logs"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				}
-			],
-			"auth": {
-				"type": "bearer",
-				"bearer": [
-					{
-						"key": "token",
-						"value": "YOUR_ADMIN_JWT_TOKEN_HERE",
-						"type": "string"
-					}
-				]
-			}
-		},
+  "name": "Admin Endpoints",
+  "item": [
+    {
+      "name": "User Provisioning (Unified)",
+      "item": [
+        {
+          "name": "Create Student (Manual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"student\",\n  \"full_name\": \"Ahmed Ali\",\n  \"email\": \"ahmed.ali@university.edu.eg\",\n  \"password\": \"SecurePass123\",\n  \"student_number\": \"20230001\",\n  \"department\": \"Computer Science\",\n  \"academic_year\": 2,\n  \"faculty_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Officer (Manual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"officer\",\n  \"full_name\": \"Officer Mohamed\",\n  \"email\": \"officer.m@university.edu.eg\",\n  \"password\": \"SecurePass123\",\n  \"officer_title\": \"Academic Counselor\",\n  \"category_ids\": [1, 2],\n  \"is_also_manager\": false,\n  \"faculty_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Manager (Manual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"manager\",\n  \"full_name\": \"Dr. Sara Mahmoud\",\n  \"email\": \"sara.m@university.edu.eg\",\n  \"password\": \"SecurePass123\",\n  \"manager_title\": \"Vice Dean of Student Affairs\",\n  \"faculty_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import Users Preview (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "CSV file — required columns vary by role. student: full_name, email, password, student_number. officer: full_name, email, password, category_ids (semicolon-separated). manager: full_name, email, password, manager_title."
+                },
+                {
+                  "key": "role",
+                  "value": "student",
+                  "type": "text",
+                  "description": "Target role for all rows in this CSV: student | officer | manager"
+                },
+                {
+                  "key": "faculty_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Faculty scope used to validate email domain and categories"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/import/preview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "import", "preview"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Users Import",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"import_id\": \"<uuid-returned-from-preview>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/import/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "import", "confirm"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Officer Manager Flag",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_also_manager\": true,\n  \"manager_title\": \"Vice Dean of Student Affairs\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/officers/12/manager-flag",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "officers", "12", "manager-flag"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories CRUD",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Schedules Complaints\",\n  \"description\": \"Issues related to class timings and lecture conflicts\",\n  \"sla_hours\": 48,\n  \"faculty_id\": 1,\n  \"keywords\": \"schedule, timing, conflict\",\n  \"officer_ids\": [3, 5]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Schedules Complaints Name\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/categories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "categories", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "General User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch User (Activate / Deactivate / Update)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "5"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "5"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Regulations",
+      "item": [
+        {
+          "name": "Get Regulations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/regulations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "regulations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Regulation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"article number\": \"42\",\n  \"content\": \"Complaints must be filed within 14 days of the incident.\",\n  \"type\": \"bylaw\",\n  \"faculty_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/regulations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "regulations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Regulation",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/regulations/3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "regulations", "3"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Priority Rules & Audit",
+      "item": [
+        {
+          "name": "Get Priority Rules",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/priority-rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "priority-rules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save / Update Priority Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority level\": 4,\n  \"description\": \"Senior student escalation — level 4 complaints bypass standard queue\",\n  \"examples\": [\"Graduation delay\", \"Final exam dispute\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/priority-rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "priority-rules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get System Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/audit-logs?user_id=&entity_type=&from=&to=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "audit-logs"],
+              "query": [
+                { "key": "user_id", "value": "", "description": "Filter by user ID (optional)" },
+                { "key": "entity_type", "value": "", "description": "Filter by entity type (optional)" },
+                { "key": "from", "value": "", "description": "Start date ISO string (optional)" },
+                { "key": "to", "value": "", "description": "End date ISO string (optional)" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{adminToken}}",
+        "type": "string"
+      }
+    ]
+  }
+},
 		{
 			"name": "Auth Endpoints"
-		
 		},
 		{
 			"name": "auth and superAdmin Endpoints",
@@ -1296,6 +1204,21 @@
 		},
 		{
 			"key": "superAdminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "studentToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "officerToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "managerToken",
 			"value": "",
 			"type": "string"
 		}

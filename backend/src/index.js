@@ -27,7 +27,7 @@ app.use('/api/manager', managerRoutes);
 app.use('/api/officer', officerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/super-admin", superAdminRoutes);
+app.use("/api/superadmin", superAdminRoutes);
 
 // Port
 const PORT = process.env.PORT || 3000;
