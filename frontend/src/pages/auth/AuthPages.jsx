@@ -59,7 +59,7 @@ function PasswordInput({ id, value, onChange, placeholder = '••••••�
         onChange={onChange}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full pr-10"
+        className="w-full pr-10 p-2 rounded-lg"
       />
       <button
         type="button"
@@ -119,7 +119,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuthStore();
 
-  const [selectedRole, setSelectedRole] = useState('student');
+  const [selectedRole, setSelectedRole] = useState('other');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
 
@@ -183,7 +183,7 @@ export function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@university.edu.eg"
             autoComplete="email"
-            className="w-full"
+            className="w-full p-2 rounded-lg "
           />
         </div>
 

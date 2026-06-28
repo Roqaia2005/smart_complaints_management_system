@@ -206,7 +206,7 @@ export async function getUsers(): Promise<AdminUser[]> {
 export async function createUser(
   payload: CreateUserPayload
 ): Promise<{ success: boolean; role: UserRole; data: unknown }> {
-  const res = await apiClient.post(`${ADMIN_BASE}/users`, payload);
+  const res = await apiClient.post(`${ADMIN_BASE}/users/create`, payload);
   return res.data;
 }
 

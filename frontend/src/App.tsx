@@ -36,6 +36,7 @@ import PriorityRulesPage from './pages/admin/PriorityRulesPage';
 import RegulationsPage from './pages/admin/RegulationsPage';
 import UsersPage from './pages/admin/UsersPage';
 import UsersImportPage from './pages/admin/UsersImportPage';
+import TopIssuesPage from './pages/manager/ManagerTopIssues';
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -71,7 +72,7 @@ function App() {
           <Route path="/manager/heatmap" element={<ManagerHeatmap />} />
           <Route path="/manager/recommendations" element={<ManagerRecommendations />} />
           <Route path="/manager/reports" element={<ManagerReports />} />
-          <Route path="/manager/top-issues" element={<ManagerTopIssues />} />
+          <Route path="/manager/top-issues" element={<TopIssuesPage />} />
           <Route path="/manager/analytics" element={<AnalyticsPage />} />
           
           {/* Admin Routes */}

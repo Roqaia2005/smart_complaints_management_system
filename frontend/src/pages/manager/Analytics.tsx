@@ -9,9 +9,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  AreaChart,
+  Area,
+  Legend,
+  Cell,
   PieChart,
   Pie,
-  Cell,
 } from 'recharts';
 import { Badge } from '../../components/ui/badge';
 import {
@@ -22,6 +25,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
+  Tag,
 } from 'lucide-react';
 import { managerApi, studentApi } from '../../api/services';
 
@@ -70,7 +74,12 @@ interface Category {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+const STATUS_COLORS: Record<string, string> = {
+  pending:     '#f59e0b',
+  in_progress: '#3b82f6',
+  resolved:    '#10b981',
+  appealed:    '#ef4444',
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -99,6 +108,57 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+/** Horizontal bar chart — handles many labels cleanly */
+function HorizontalBarChart({
+  data,
+  dataKey,
+  labelKey,
+  color,
+  height,
+}: {
+  data: { [key: string]: any }[];
+  dataKey: string;
+  labelKey: string;
+  color: string;
+  height?: number;
+}) {
+  const chartHeight = Math.max(data.length * 40, 200);
+  return (
+    <ResponsiveContainer width="100%" height={height ?? chartHeight}>
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+        <XAxis
+          type="number"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fill: '#64748b', fontSize: 11 }}
+        />
+        <YAxis
+          type="category"
+          dataKey={labelKey}
+          axisLine={false}
+          tickLine={false}
+          width={110}
+          tick={{ fill: '#64748b', fontSize: 11 }}
+        />
+        <Tooltip
+          contentStyle={{
+            borderRadius: '12px',
+            border: 'none',
+            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+          }}
+          cursor={{ fill: 'rgba(59,130,246,0.05)' }}
+        />
+        <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} barSize={16} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
@@ -109,16 +169,28 @@ export default function AnalyticsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [heatmap, setHeatmap] = useState<HeatmapItem[]>([]);
 
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [loadingDept, setLoadingDept] = useState(false);
-  const [loadingHeatmap, setLoadingHeatmap] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(false);
+  // heatmap slices
+  const [heatmapCategory, setHeatmapCategory] = useState<HeatmapItem[]>([]);
+  const [heatmapTime, setHeatmapTime]         = useState<HeatmapItem[]>([]);
+  const [heatmapDept, setHeatmapDept]         = useState<HeatmapItem[]>([]);
+  const [topIssues, setTopIssues]             = useState<{ id: number; title: string; count: number }[]>([]);
 
-  const [errorDashboard, setErrorDashboard] = useState<string | null>(null);
-  const [errorDept, setErrorDept] = useState<string | null>(null);
-  const [errorHeatmap, setErrorHeatmap] = useState<string | null>(null);
+  // loading / error
+  const [loadingDashboard,   setLoadingDashboard]   = useState(false);
+  const [loadingDept,        setLoadingDept]         = useState(false);
+  const [loadingHeatmapCat,  setLoadingHeatmapCat]  = useState(false);
+  const [loadingHeatmapTime, setLoadingHeatmapTime] = useState(false);
+  const [loadingHeatmapDept, setLoadingHeatmapDept] = useState(false);
+  const [loadingTopIssues,   setLoadingTopIssues]   = useState(false);
+  const [loadingCategories,  setLoadingCategories]  = useState(false);
+
+  const [errorDashboard,   setErrorDashboard]   = useState<string | null>(null);
+  const [errorDept,        setErrorDept]         = useState<string | null>(null);
+  const [errorHeatmapCat,  setErrorHeatmapCat]  = useState<string | null>(null);
+  const [errorHeatmapTime, setErrorHeatmapTime] = useState<string | null>(null);
+  const [errorHeatmapDept, setErrorHeatmapDept] = useState<string | null>(null);
+  const [errorTopIssues,   setErrorTopIssues]   = useState<string | null>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -126,9 +198,9 @@ export default function AnalyticsPage() {
     setLoadingCategories(true);
     try {
       const res = await studentApi.getCategories();
-      setCategories(res.data ?? []);
+      setCategories(res.data.categories ?? []);
     } catch {
-      // non-critical — silently fail, filter still works with "all"
+      /* non-critical */
     } finally {
       setLoadingCategories(false);
     }
@@ -140,7 +212,7 @@ export default function AnalyticsPage() {
     try {
       const param = categoryId !== 'all' ? categoryId : undefined;
       const res = await managerApi.getOverview(param);
-      setDashboard(res.data);
+      setDashboard(res.data.data);
     } catch {
       setErrorDashboard('Failed to load dashboard stats. Please try again.');
     } finally {
@@ -161,28 +233,75 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  const fetchHeatmap = useCallback(async () => {
-    setLoadingHeatmap(true);
-    setErrorHeatmap(null);
+  const fetchHeatmapCategory = useCallback(async () => {
+    setLoadingHeatmapCat(true);
+    setErrorHeatmapCat(null);
     try {
       const res = await managerApi.getHeatmap('category');
-      setHeatmap(res.data?.heatmap ?? []);
+      // sort descending so the longest bar is on top
+      const sorted = [...(res.data?.heatmap ?? [])].sort((a, b) => b.count - a.count);
+      setHeatmapCategory(sorted);
     } catch {
-      setErrorHeatmap('Failed to load category distribution.');
+      setErrorHeatmapCat('Failed to load category volume.');
     } finally {
-      setLoadingHeatmap(false);
+      setLoadingHeatmapCat(false);
     }
   }, []);
+
+  const fetchHeatmapTime = useCallback(async () => {
+    setLoadingHeatmapTime(true);
+    setErrorHeatmapTime(null);
+    try {
+      const res = await managerApi.getHeatmap('time');
+      setHeatmapTime(res.data?.heatmap ?? []);
+    } catch {
+      setErrorHeatmapTime('Failed to load complaint trend.');
+    } finally {
+      setLoadingHeatmapTime(false);
+    }
+  }, []);
+
+  const fetchHeatmapDept = useCallback(async () => {
+    setLoadingHeatmapDept(true);
+    setErrorHeatmapDept(null);
+    try {
+      const res = await managerApi.getHeatmap('department');
+      const sorted = [...(res.data?.heatmap ?? [])].sort((a, b) => b.count - a.count);
+      setHeatmapDept(sorted);
+    } catch {
+      setErrorHeatmapDept('Failed to load department load data.');
+    } finally {
+      setLoadingHeatmapDept(false);
+    }
+  }, []);
+
+  const fetchTopIssues = useCallback(async () => {
+    setLoadingTopIssues(true);
+    setErrorTopIssues(null);
+    try {
+            const param = categoryId !== 'all' ? categoryId : null;
+
+      const res = await managerApi.getTopIssues(param);
+      setTopIssues(res.data?.top_issues ?? []);
+    } catch {
+      setErrorTopIssues('Failed to load top issues.');
+    } finally {
+      setLoadingTopIssues(false);
+    }
+  }, [categoryId]);
 
   useEffect(() => {
     fetchCategories();
     fetchDepartments();
-    fetchHeatmap();
-  }, [fetchCategories, fetchDepartments, fetchHeatmap]);
+    fetchHeatmapCategory();
+    fetchHeatmapTime();
+    fetchHeatmapDept();
+  }, [fetchCategories, fetchDepartments, fetchHeatmapCategory, fetchHeatmapTime, fetchHeatmapDept]);
 
   useEffect(() => {
     fetchDashboard();
-  }, [fetchDashboard]);
+    fetchTopIssues();
+  }, [fetchDashboard, fetchTopIssues]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -196,46 +315,27 @@ export default function AnalyticsPage() {
     setSearchParams(searchParams);
   };
 
-  // ── Derived KPIs ───────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const selectedCategoryName =
+    categoryId === 'all'
+      ? null
+      : categories.find((c) => String(c.id) === categoryId)?.name ?? null;
 
   const kpis = dashboard
     ? [
-        {
-          label: 'Total Complaints',
-          value: dashboard.totalComplaints.toLocaleString(),
-          change: null,
-          icon: FileText,
-          trend: 'neutral' as const,
-        },
-        {
-          label: 'Resolution Rate',
-          value: dashboard.resolutionRate,
-          change: null,
-          icon: CheckCircle,
-          trend: 'up' as const,
-        },
-        {
-          label: 'SLA Breach Rate',
-          value: dashboard.slaBreachRate,
-          change: null,
-          icon: AlertTriangle,
-          trend: 'down' as const,
-        },
-        {
-          label: 'Appeal Rate',
-          value: dashboard.appealRate,
-          change: null,
-          icon: Users,
-          trend: 'neutral' as const,
-        },
+        { label: 'Total Complaints', value: dashboard.totalComplaints.toLocaleString(), icon: FileText,     trend: 'neutral' as const },
+        { label: 'Resolution Rate',  value: dashboard.resolutionRate,                   icon: CheckCircle,   trend: 'up'      as const },
+        { label: 'SLA Breach Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
+        { label: 'Appeal Rate',      value: dashboard.appealRate,                       icon: Users,         trend: 'neutral' as const },
       ]
     : [];
 
-  // Status breakdown → pie-ready array
   const statusPieData = dashboard
     ? Object.entries(dashboard.statusBreakdown).map(([key, val]) => ({
         name: key.replace('_', ' '),
         value: val,
+        fill: STATUS_COLORS[key] ?? '#94a3b8',
       }))
     : [];
 
@@ -243,13 +343,12 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header + Filter */}
+
+      {/* ── Header + Filter ──────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">System Insights</h1>
-          <p className="text-muted-foreground">
-            Monitor performance metrics and workflow health
-          </p>
+          <p className="text-muted-foreground">Monitor performance metrics and workflow health</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -265,15 +364,13 @@ export default function AnalyticsPage() {
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.name}
-              </option>
+              <option key={c.id} value={String(c.id)}>{c.name}</option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* ── KPI Cards ────────────────────────────────────────────────────── */}
       {errorDashboard && <ErrorBanner message={errorDashboard} />}
 
       {loadingDashboard ? (
@@ -288,15 +385,8 @@ export default function AnalyticsPage() {
                     <kpi.icon size={20} />
                   </div>
                   {kpi.trend !== 'neutral' && (
-                    <Badge
-                      variant={kpi.trend === 'up' ? 'success' : 'destructive'}
-                      className="gap-1"
-                    >
-                      {kpi.trend === 'up' ? (
-                        <TrendingUp size={12} />
-                      ) : (
-                        <TrendingDown size={12} />
-                      )}
+                    <Badge variant={kpi.trend === 'up' ? 'success' : 'destructive'} className="gap-1">
+                      {kpi.trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                     </Badge>
                   )}
                 </div>
@@ -310,28 +400,34 @@ export default function AnalyticsPage() {
         </div>
       ) : null}
 
-      {/* Charts Row */}
+      {/* ── Row 1: Complaint Trend (time) + Status Breakdown ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* Department Performance — Bar Chart */}
+        {/* Monthly Complaint Trend — Area Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Department Performance</CardTitle>
-            <CardDescription>Total vs resolved complaints per department</CardDescription>
+            <CardTitle>Complaint Trend</CardTitle>
+            <CardDescription>Monthly volume over time</CardDescription>
           </CardHeader>
-          <CardContent className="h-[350px]">
-            {loadingDept ? (
+          <CardContent className="h-[300px]">
+            {loadingHeatmapTime ? (
               <LoadingOverlay />
-            ) : errorDept ? (
-              <ErrorBanner message={errorDept} />
-            ) : departments.length === 0 ? (
-              <EmptyState label="No department data available." />
+            ) : errorHeatmapTime ? (
+              <ErrorBanner message={errorHeatmapTime} />
+            ) : heatmapTime.length === 0 ? (
+              <EmptyState label="No trend data available." />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={departments} margin={{ left: -10 }}>
+                <AreaChart data={heatmapTime} margin={{ left: -10, right: 8 }}>
+                  <defs>
+                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis
-                    dataKey="name"
+                    dataKey="label"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#64748b', fontSize: 11 }}
@@ -339,75 +435,74 @@ export default function AnalyticsPage() {
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
                   />
                   <Tooltip
-                    contentStyle={{
-                      borderRadius: '12px',
-                      border: 'none',
-                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    }}
-                    cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
-                    formatter={(value: number, name: string) => [
-                      value,
-                      name === 'total' ? 'Total' : 'Resolved',
-                    ]}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    formatter={(v: number) => [v, 'Complaints']}
                   />
-                  <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar dataKey="resolved" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    fill="url(#trendGrad)"
+                    dot={{ r: 3, fill: '#3b82f6' }}
+                    activeDot={{ r: 5 }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* Category Distribution — Donut Chart */}
+        {/* Status Breakdown — Donut Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Requests by Category</CardTitle>
-            <CardDescription>Distribution of complaints across categories</CardDescription>
+            <CardTitle>Status Breakdown</CardTitle>
+            <CardDescription>
+              Percentage share of each complaint status
+              {selectedCategoryName && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <Tag size={10} /> {selectedCategoryName}
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="h-[350px]">
-            {loadingHeatmap ? (
+          <CardContent className="h-[300px]">
+            {loadingDashboard ? (
               <LoadingOverlay />
-            ) : errorHeatmap ? (
-              <ErrorBanner message={errorHeatmap} />
-            ) : heatmap.length === 0 ? (
-              <EmptyState label="No category data available." />
+            ) : statusPieData.length === 0 ? (
+              <EmptyState label="No status data." />
             ) : (
               <>
-                <ResponsiveContainer width="100%" height="85%">
+                <ResponsiveContainer width="100%" height="80%">
                   <PieChart>
                     <Pie
-                      data={heatmap}
+                      data={statusPieData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="count"
-                      nameKey="label"
+                      outerRadius={95}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
                     >
-                      {heatmap.map((_, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
+                      {statusPieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.fill} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, name: string) => [value, name]}
+                      formatter={(v: number, name: string) => [`${v}%`, name]}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-4">
-                  {heatmap.map((entry, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                      />
-                      <span className="text-xs font-medium">{entry.label}</span>
+                  {statusPieData.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
+                      <span className="text-xs font-medium capitalize">{entry.name} ({entry.value}%)</span>
                     </div>
                   ))}
                 </div>
@@ -417,102 +512,194 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Status Breakdown — Donut (only when dashboard loaded) */}
-      {dashboard && statusPieData.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Breakdown</CardTitle>
-              <CardDescription>Percentage share of each complaint status</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="80%">
-                <PieChart>
-                  <Pie
-                    data={statusPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={4}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {statusPieData.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={PIE_COLORS[index % PIE_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number, name: string) => [`${value}%`, name]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-wrap justify-center gap-4">
-                {statusPieData.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                    />
-                    <span className="text-xs font-medium capitalize">
-                      {entry.name} ({entry.value}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      {/* ── Row 2: Category Volume + Department Load ──────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-          {/* Officer Performance — Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Officer Performance</CardTitle>
-              <CardDescription>Resolution stats per officer</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {dashboard.officerPerformance.length === 0 ? (
-                <EmptyState label="No officer data for this filter." />
+        {/* Requests by Category — Horizontal Bar (replaces pie) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Requests by Category</CardTitle>
+            <CardDescription>Complaint volume per category, ranked highest first</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingHeatmapCat ? (
+              <LoadingOverlay />
+            ) : errorHeatmapCat ? (
+              <ErrorBanner message={errorHeatmapCat} />
+            ) : heatmapCategory.length === 0 ? (
+              <EmptyState label="No category data available." />
+            ) : (
+              <HorizontalBarChart
+                data={heatmapCategory}
+                dataKey="count"
+                labelKey="label"
+                color="#3b82f6"
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Complaint Load by Department — Horizontal Bar */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Complaint Load by Department</CardTitle>
+            <CardDescription>Which departments generate the most complaints</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingHeatmapDept ? (
+              <LoadingOverlay />
+            ) : errorHeatmapDept ? (
+              <ErrorBanner message={errorHeatmapDept} />
+            ) : heatmapDept.length === 0 ? (
+              <EmptyState label="No department load data available." />
+            ) : (
+              <HorizontalBarChart
+                data={heatmapDept}
+                dataKey="count"
+                labelKey="label"
+                color="#f59e0b"
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 3: Department Performance (total vs resolved + avg hours) ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Department Performance</CardTitle>
+          <CardDescription>Total vs resolved complaints and average resolution hours per department</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[320px]">
+          {loadingDept ? (
+            <LoadingOverlay />
+          ) : errorDept ? (
+            <ErrorBanner message={errorDept} />
+          ) : departments.length === 0 ? (
+            <EmptyState label="No department data available." />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={departments} margin={{ left: -10, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ fill: 'rgba(59,130,246,0.05)' }}
+                  formatter={(value: number, name: string) => [
+                    name === 'avg_hours' ? `${value}h` : value,
+                    name === 'total' ? 'Total' : name === 'resolved' ? 'Resolved' : 'Avg Hours',
+                  ]}
+                />
+                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours'} />
+                <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
+                <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
+                <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Row 4: Officer Performance + Top Issues ───────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* Officer Performance — filtered by selected category */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Officer Performance</CardTitle>
+            <CardDescription>
+              Resolution stats per officer
+              {selectedCategoryName ? (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <Tag size={10} /> {selectedCategoryName}
+                </span>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-muted-foreground">
-                        <th className="pb-2 pr-4 font-medium">Officer</th>
-                        <th className="pb-2 pr-4 font-medium text-center">Resolved</th>
-                        <th className="pb-2 pr-4 font-medium text-center">Avg. Time</th>
-                        <th className="pb-2 font-medium text-center">SLA</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.officerPerformance.map((officer) => (
-                        <tr key={officer.id} className="border-b last:border-0">
-                          <td className="py-2 pr-4 font-medium">{officer.full_name}</td>
-                          <td className="py-2 pr-4 text-center">{officer.totalResolved}</td>
-                          <td className="py-2 pr-4 text-center text-muted-foreground">
-                            {officer.avgResolutionTime}
-                          </td>
-                          <td className="py-2 text-center">
-                            <Badge
-                              variant={
-                                parseInt(officer.slaCompliance) >= 90
-                                  ? 'success'
-                                  : 'destructive'
-                              }
-                            >
-                              {officer.slaCompliance}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <span className="ml-1 text-xs text-muted-foreground">— select a category to filter</span>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingDashboard ? (
+              <LoadingOverlay />
+            ) : !dashboard || dashboard.officerPerformance.length === 0 ? (
+              <EmptyState label={selectedCategoryName ? `No officers assigned to ${selectedCategoryName}.` : 'No officer data available.'} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4 font-medium">Officer</th>
+                      <th className="pb-2 pr-4 font-medium text-center">Resolved</th>
+                      <th className="pb-2 pr-4 font-medium text-center">Avg. Time</th>
+                      <th className="pb-2 font-medium text-center">SLA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.officerPerformance.map((officer) => (
+                      <tr key={officer.id} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium">{officer.full_name}</td>
+                        <td className="py-2 pr-4 text-center">{officer.totalResolved}</td>
+                        <td className="py-2 pr-4 text-center text-muted-foreground">{officer.avgResolutionTime}</td>
+                        <td className="py-2 text-center">
+                          <Badge variant={parseInt(officer.slaCompliance) >= 90 ? 'success' : 'destructive'}>
+                            {officer.slaCompliance}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Issues — only meaningful when a category is selected */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Recurring Issues</CardTitle>
+            <CardDescription>
+              {selectedCategoryName
+                ? `Most common issues in ${selectedCategoryName}`
+                : 'Top recurring issues across all categories'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingTopIssues ? (
+              <LoadingOverlay />
+            ) : errorTopIssues ? (
+              <ErrorBanner message={errorTopIssues} />
+            ) : topIssues.length === 0 ? (
+              <EmptyState label="No recurring issues found for this category." />
+            ) : (
+              <ol className="space-y-2">
+                {topIssues.map((issue) => (
+                  <li key={issue.id} className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {issue.id}
+                    </span>
+                    <span className="flex-1 leading-snug">{issue.title}</span>
+                    <Badge variant="secondary" className="ml-auto flex-shrink-0">
+                      {issue.count}×
+                    </Badge>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }
