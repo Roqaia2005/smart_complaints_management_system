@@ -261,3 +261,19 @@ exports.getOfficerDashboardStats = async (officerId, categoryId = null) => {
         recentComplaints
     };
 };
+
+// =========================================================
+// 7. Get All Officers (for complaint escalation/assignment)
+// =========================================================
+exports.getAllOfficersService = async () => {
+    const officers = await User.findAll({
+        where: {
+            role: 'officer',
+            is_active: true
+        },
+        attributes: ['id', 'full_name', 'email', 'role'],
+        order: [['full_name', 'ASC']]
+    });
+
+    return { officers };
+};
