@@ -60,7 +60,7 @@ exports.updateComplaintStatusController = async (req, res) => {
     try {
         const officerId = req.user.id; 
         const { id } = req.params;
-        const { status, resolution_text } = req.body;
+        const { status, resolution_text } = req.body; 
 
         if (!status) {
             throw new Error('Status field is required.');
@@ -68,13 +68,14 @@ exports.updateComplaintStatusController = async (req, res) => {
 
         const formattedStatus = status.toLowerCase();
 
+        // تمرير الـ resolution_text كـ باراميتر ثالث للسيرفس بالترتيب
         const data = await updateComplaintStatusService(id, formattedStatus, resolution_text, officerId);
         return res.status(200).json(data);
 
     } catch (error) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            error: error.message // سيرد بالرسالة: resolution_text is required... في حال النقص
         });
     }
 };

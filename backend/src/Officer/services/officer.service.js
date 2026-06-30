@@ -101,7 +101,8 @@ exports.updateComplaintStatusService = async (complaintId, status, resolutionTex
         throw new Error(`Invalid status. Allowed values: ${allowedStatuses.join(', ')}`);
     }
 
-    if (lowerStatus === 'resolved' && !resolutionText) {
+    // تعديل: استخدام .trim() للتأكد أن الـ text ليس فارغاً أو مجرد مسافات
+    if (lowerStatus === 'resolved' && (!resolutionText || !resolutionText.trim())) {
         throw new Error('resolution_text is required when status is Resolved');
     }
 
@@ -125,7 +126,7 @@ exports.updateComplaintStatusService = async (complaintId, status, resolutionTex
 
         const updateData = { status: lowerStatus };
         if (lowerStatus === 'resolved') {
-            updateData.resolution_text = resolutionText;
+            updateData.resolution_text = resolutionText.trim(); // حفظ النص بعد تنظيفه
             updateData.resolved_at = new Date();
         }
 
