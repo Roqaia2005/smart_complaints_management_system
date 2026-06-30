@@ -1,21 +1,24 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
+const { Model } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
   class OtpToken extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // define association here
+      // هنا ربطنا الـ OTP بجدول الـ Students
+      OtpToken.belongsTo(models.Student, {
+        foreignKey: 'student_id',
+        as: 'student'
+      });
     }
   }
+  
   OtpToken.init(
     {
-      student_number: DataTypes.STRING,
+      // التعديل هنا: شيلنا student_number وضفنا student_id
+      student_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true // خليه يقبل Null لأن الموظفين مش طلاب ومعندهمش student_id
+      },
       email: DataTypes.STRING,
       signup_role: DataTypes.ENUM("officer", "manager"),
       purpose: DataTypes.ENUM(

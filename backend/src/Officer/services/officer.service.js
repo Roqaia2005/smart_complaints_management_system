@@ -233,17 +233,41 @@ exports.getOfficerDashboardStats = async (officerId, categoryId = null) => {
     // 2. حساب الشكاوى المحلولة
     const resolvedMonth = await Complaint.count({ where: { ...whereClause, status: 'resolved' } });
     
-    // 3. حساب المتوسط مباشرة من الداتابيز (أسرع بـ 100 ضعف من الـ Loop في السيرفر)
-    // ملحوظة: هذا الكود مكتوب بـ Syntax الـ PostgreSQL لحساب الفارق بالأيام، لو شغال MySQL يتم استبدال الـ Literal بـ DATEDIFF
+    // 3. حساب المتوسط ونسبة الـ SLA ديناميكياً بناءً على ساعات القسم (sla_hours)
+    // بنعمل INNER JOIN مع جدول categories بناءً على الـ category_id المحقق للشرط
     const stats = await Complaint.findOne({
         where: { ...whereClause, status: 'resolved' },
         attributes: [
-            [sequelize.fn('AVG', sequelize.literal('EXTRACT(EPOCH FROM ("resolved_at" - "createdAt")) / 86400')), 'avgDays']
+            // حساب متوسط أيام الحل للشكاوى
+            [sequelize.fn('AVG', sequelize.literal('EXTRACT(EPOCH FROM ("Complaint"."resolved_at" - "Complaint"."createdAt")) / 86400')), 'avgDays'],
+            
+            // حساب نسبة الـ SLA ديناميكياً:
+            // بنحسب الوقت المستغرق بالوجيز (بالساعات): EXTRACT(EPOCH FROM (resolved_at - createdAt)) / 3600
+            // وبنقارنه بعمود c.sla_hours القادم من جدول الـ categories
+            [sequelize.literal(`
+                COALESCE(
+                    (COUNT(
+                        CASE 
+                            WHEN (EXTRACT(EPOCH FROM ("Complaint"."resolved_at" - "Complaint"."createdAt")) / 3600) <= "Category"."sla_hours" 
+                            THEN 1 
+                        END
+                    ) * 100.0) / NULLIF(COUNT(*), 0), 
+                    100
+                )
+            `), 'slaPercentage']
         ],
+        // عمل ربط (Join) مع موديل الـ Category لجلب الـ sla_hours داخل الكويري
+        include: [{
+            model: Category,
+            attributes: [], // مش محتاجين نرجع داتا عادية منها، فقط مستخدمينها في الـ Literal فوق
+            required: true // INNER JOIN
+        }],
         raw: true
     });
 
     const avgTime = stats && stats.avgDays ? parseFloat(stats.avgDays).toFixed(1) + 'd' : "0d";
+    // إذا كانت نسبة الـ SLA غير موجودة (مثلا مفيش شكاوى محلولة أصلاً) بنرجع 100% كافتراضي
+    const slaCompliance = stats && stats.slaPercentage ? Math.round(parseFloat(stats.slaPercentage)) + '%' : "100%";
 
     // 4. جلب أحدث 5 شكاوى فقط للـ Dashboard
     const recentComplaints = await Complaint.findAll({
@@ -257,7 +281,7 @@ exports.getOfficerDashboardStats = async (officerId, categoryId = null) => {
         openComplaints,
         resolvedThisMonth: resolvedMonth,
         avgResolutionTime: avgTime,
-        slaCompliance: "91%", 
+        slaCompliance: slaCompliance, 
         recentComplaints
     };
 };
@@ -265,13 +289,20 @@ exports.getOfficerDashboardStats = async (officerId, categoryId = null) => {
 // =========================================================
 // 7. Get All Officers (for complaint escalation/assignment)
 // =========================================================
-exports.getAllOfficersService = async () => {
+exports.getAllOfficersService = async (currentOfficerId, facultyId) => {
+    // التحقق من وجود الكلية لمنع جلب بيانات خاطئة
+    if (!facultyId) {
+        return { officers: [] };
+    }
+
     const officers = await User.findAll({
         where: {
             role: 'officer',
-            is_active: true
+            is_active: true,
+            faculty_id: facultyId,          // يجيب فقط الموظفين اللي في نفس الكلية
+            id: { [Op.ne]: currentOfficerId } // يستثني الموظف الحالي (نفسه) من القائمة
         },
-        attributes: ['id', 'full_name', 'email', 'role'],
+        attributes: ['id', 'full_name', 'email', 'role', 'faculty_id'],
         order: [['full_name', 'ASC']]
     });
 
