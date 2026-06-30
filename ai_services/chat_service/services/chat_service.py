@@ -9,26 +9,29 @@ SESSION_TIMEOUT_MINUTES = 30
 
 
 async def create_session(db: AsyncSession, user_id: int) -> int:
-    empty_state = json.dumps({
+    state = json.dumps({
         "category_id": None,
         "category_name": None,
         "problem_summary": None,
         "details": {},
-        "awaiting_confirmation": False
+        "awaiting_confirmation": False,
+        "suggestion_offered": False,
+        "offensive_count": 0,
+        "questions_asked": 0,
     })
     result = await db.execute(
         text('''
-            INSERT INTO "ChatSessions" (user_id, status, language, collected_data, "createdAt", "updatedAt")
+            INSERT INTO "ChatSessions"
+                (user_id, status, language, collected_data, "createdAt", "updatedAt")
             VALUES (:uid, 'active', 'en', :state, NOW(), NOW())
             RETURNING id
         '''),
-        {"uid": user_id, "state": empty_state}
+        {"uid": user_id, "state": state}
     )
     await db.commit()
     row = result.fetchone()
     if row is None:
         raise RuntimeError("Failed to create chat session")
-    logger.info(f"Session created for user {user_id}")
     return row.id
 
 
@@ -45,19 +48,16 @@ async def save_message(db: AsyncSession, session_id: int, role: str, content: st
 
 async def get_history(db: AsyncSession, session_id: int) -> list[dict]:
     result = await db.execute(
-        text('''
-            SELECT role, content FROM "ChatMessages"
-            WHERE session_id = :sid ORDER BY "createdAt" ASC
-        '''),
+        text('SELECT role, content FROM "ChatMessages" WHERE session_id = :sid ORDER BY "createdAt" ASC'),
         {"sid": session_id}
     )
-    return [{"role": row.role, "content": row.content} for row in result.fetchall()]
+    return [{"role": r.role, "content": r.content} for r in result.fetchall()]
 
 
 async def close_session(db: AsyncSession, session_id: int, status: str = "completed"):
     await db.execute(
-        text('UPDATE "ChatSessions" SET status = :status, "updatedAt" = NOW() WHERE id = :sid'),
-        {"status": status, "sid": session_id}
+        text('UPDATE "ChatSessions" SET status = :s, "updatedAt" = NOW() WHERE id = :sid'),
+        {"s": status, "sid": session_id}
     )
     await db.commit()
 
@@ -65,7 +65,7 @@ async def close_session(db: AsyncSession, session_id: int, status: str = "comple
 async def validate_session(db: AsyncSession, session_id: int, user_id: int) -> dict | None:
     result = await db.execute(
         text('''
-            SELECT id, language, collected_data, "updatedAt",
+            SELECT id, language, collected_data,
                    EXTRACT(EPOCH FROM (NOW() - "updatedAt")) / 60 AS minutes_idle
             FROM "ChatSessions"
             WHERE id = :sid AND user_id = :uid AND status = 'active'
@@ -75,19 +75,18 @@ async def validate_session(db: AsyncSession, session_id: int, user_id: int) -> d
     row = result.fetchone()
     if not row:
         return None
-
-    # Lazy timeout check - if the session has been idle too long, close it
-    # instead of letting a stale conversation be reused
-    if row.minutes_idle is not None and row.minutes_idle > SESSION_TIMEOUT_MINUTES:
+    if row.minutes_idle and row.minutes_idle > SESSION_TIMEOUT_MINUTES:
         await close_session(db, row.id, status="abandoned")
-        logger.info(f"Session {row.id} closed as abandoned after {SESSION_TIMEOUT_MINUTES} minutes idle")
         return None
-
-    state = row.collected_data or {"category_id": None, "category_name": None, "problem_summary": None, "details": {}, "awaiting_confirmation": False, "suggestion_offered": False}
-    if "awaiting_confirmation" not in state:
-        state["awaiting_confirmation"] = False
-    if "suggestion_offered" not in state:
-        state["suggestion_offered"] = False
+    state = row.collected_data or {}
+    defaults = {
+        "category_id": None, "category_name": None, "problem_summary": None,
+        "details": {}, "awaiting_confirmation": False, "suggestion_offered": False,
+        "offensive_count": 0, "questions_asked": 0,
+    }
+    for k, v in defaults.items():
+        if k not in state:
+            state[k] = v
     return {"id": row.id, "language": row.language, "state": state}
 
 
@@ -114,3 +113,71 @@ async def count_messages(db: AsyncSession, session_id: int) -> int:
     )
     row = result.fetchone()
     return row.cnt if row else 0
+
+
+async def get_student_info(db: AsyncSession, user_id: int) -> dict:
+    """
+    Returns student name, department, academic_year.
+
+    Two possible joins depending on your schema:
+
+    OPTION A: users has a student_id foreign key pointing to Students table
+        SELECT u.full_name, s.department, s.academic_year
+        FROM users u LEFT JOIN "Students" s ON s.id = u.student_id
+        WHERE u.id = :uid
+
+    OPTION B: Students table has a user_id foreign key pointing to users
+        SELECT u.full_name, s.department, s.academic_year
+        FROM users u LEFT JOIN "Students" s ON s.user_id = u.id
+        WHERE u.id = :uid
+
+    Check your models and use the right query below. Both are written out.
+    Comment out the one you do not use.
+    """
+
+    
+    result = await db.execute(
+        text('''
+            SELECT u.full_name, s.department, s.academic_year
+            FROM users u
+            LEFT JOIN "Students" s ON s.id = u.student_id
+            WHERE u.id = :uid LIMIT 1
+        '''),
+        {"uid": user_id}
+    )
+
+    row = result.fetchone()
+    if not row:
+        return {}
+    return {
+        "name": row.full_name or "",
+        "department": row.department or "",
+        "academic_year": str(row.academic_year) if row.academic_year else "",
+    }
+
+
+async def get_student_faculty_id(db: AsyncSession, user_id: int) -> int | None:
+    result = await db.execute(
+        text('SELECT faculty_id FROM users WHERE id = :uid LIMIT 1'),
+        {"uid": user_id}
+    )
+    row = result.fetchone()
+    return row.faculty_id if row else None
+
+
+async def log_offensive_incident(
+    db: AsyncSession, user_id: int, session_id: int, message: str, count: int
+):
+    try:
+        await db.execute(
+            text('''
+                INSERT INTO "OffensiveMessages"
+                    (user_id, session_id, message, offense_count, "createdAt")
+                VALUES (:uid, :sid, :msg, :cnt, NOW())
+            '''),
+            {"uid": user_id, "sid": session_id, "msg": message[:1000], "cnt": count}
+        )
+        await db.commit()
+        logger.warning(f"Offensive message #{count} logged — user {user_id} session {session_id}")
+    except Exception as e:
+        logger.error(f"Could not log offensive message: {e}")

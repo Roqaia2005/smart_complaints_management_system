@@ -1,6 +1,6 @@
 const authService = require("../services/auth.service");
 
-
+// ADMIN REGISTRATION REQUEST (submitted by a prospective faculty admin)
 
 const submitAdminRequest = async (req, res) => {
   try {
@@ -10,19 +10,90 @@ const submitAdminRequest = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-// PASSWORD RESET (shared by all roles)
-// =========================================================
+
+// SUPER ADMIN: review pending admin requests
+
+const getPendingAdminRequestsController = async (req, res) => {
+  try {
+    const requests = await authService.getPendingAdminRequests();
+    return res.json({ success: true, requests });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const approveAdminRequestController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await authService.approveAdminRequest(id);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const rejectAdminRequestController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rejection_reason } = req.body;
+    const result = await authService.rejectAdminRequest(id, rejection_reason);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// STUDENT REGISTRATION
+
+const studentRequestOtpController = async (req, res) => {
+  try {
+    const { student_number, email } = req.body;
+    if (!student_number || !email)
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "student_number and email are required.",
+        });
+    const result = await authService.studentRequestOtp(student_number, email);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const studentVerifyAndRegisterController = async (req, res) => {
+  try {
+    const { student_number, email, otp_code, password } = req.body;
+    if (!student_number || !email || !otp_code || !password)
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "student_number, email, otp_code, and password are required.",
+        });
+    const result = await authService.studentVerifyOtpAndRegister(
+      student_number,
+      email,
+      otp_code,
+      password,
+    );
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// PASSWORD RESET
 
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
+    if (!email)
       return res
         .status(400)
         .json({ success: false, message: "email is required." });
-    }
-
     const result = await authService.forgotPassword(email);
     return res.json(result);
   } catch (error) {
@@ -33,16 +104,13 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { email, otp_code, new_password } = req.body;
-
-    if (!email || !otp_code || !new_password) {
+    if (!email || !otp_code || !new_password)
       return res
         .status(400)
         .json({
           success: false,
           message: "email, otp_code, and new_password are required.",
         });
-    }
-
     const result = await authService.resetPassword(
       email,
       otp_code,
@@ -54,35 +122,32 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// =========================================================
-// LOGIN (shared by all roles)
-// =========================================================
+// LOGIN
 
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
+    if (!email || !password)
       return res
         .status(400)
         .json({ success: false, message: "email and password are required." });
-    }
-
     const result = await authService.login(email, password);
     return res.json(result);
   } catch (error) {
-    let status = 401;
-
-    if (error.message.includes("deactivated")) {
-      status = 403;
-    }
-
-    return res.status(status).json({ success: false, message: error.message });
+    return res.status(error.message.includes("deactivated") ? 403 : 401).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
 module.exports = {
- submitAdminRequest,
+  submitAdminRequest,
+  getPendingAdminRequestsController,
+  approveAdminRequestController,
+  rejectAdminRequestController,
+  studentRequestOtpController,
+  studentVerifyAndRegisterController,
   forgotPassword,
   resetPassword,
   login,
