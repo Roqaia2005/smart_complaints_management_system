@@ -1,18 +1,31 @@
 const authService = require("../services/auth.service");
 
-
-
+// =========================================================
+// 1. ADMIN REGISTRATION REQUEST (طلب تسجيل أدمن الكلية)
+// =========================================================
 const submitAdminRequest = async (req, res) => {
   try {
-    const result = await authService.submitAdminRequest(req.body);
-    res.status(201).json(result);
+    // لقط البيانات النصية + مسار الملف المرفوع بواسطة Multer
+    const requestData = {
+      ...req.body,
+      supporting_document: req.file ? req.file.path : null // حفظ مسار الملف في قاعدة البيانات
+    };
+
+    // فحص بسيط للتأكد من رفع المستند الداعم
+    if (!requestData.supporting_document) {
+      return res.status(400).json({ success: false, message: "Supporting document file is required." });
+    }
+
+    const result = await authService.submitAdminRequest(requestData);
+    return res.status(201).json(result);
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
-// PASSWORD RESET (shared by all roles)
-// =========================================================
 
+// =========================================================
+// 2. FORGOT PASSWORD (طلب إعادة التعيين - إرسال OTP)
+// =========================================================
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -20,16 +33,19 @@ const forgotPassword = async (req, res) => {
     if (!email) {
       return res
         .status(400)
-        .json({ success: false, message: "email is required." });
+        .json({ success: false, message: "Email is required." });
     }
 
     const result = await authService.forgotPassword(email);
-    return res.json(result);
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
 };
 
+// =========================================================
+// 3. RESET PASSWORD (تطبيق إعادة التعيين باستخدام الـ OTP)
+// =========================================================
 const resetPassword = async (req, res) => {
   try {
     const { email, otp_code, new_password } = req.body;
@@ -39,25 +55,42 @@ const resetPassword = async (req, res) => {
         .status(400)
         .json({
           success: false,
-          message: "email, otp_code, and new_password are required.",
+          message: "Email, otp_code, and new_password are required.",
         });
     }
 
-    const result = await authService.resetPassword(
-      email,
-      otp_code,
-      new_password,
-    );
-    return res.json(result);
+    const result = await authService.resetPassword(email, otp_code, new_password);
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
 };
 
 // =========================================================
-// LOGIN (shared by all roles)
+// 4. CHANGE PASSWORD (تغيير كلمة المرور من داخل الحساب - محمية)
 // =========================================================
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id; // حماية: جلب الـ ID من الـ Token الموثق
+    const { current_password, new_password } = req.body;
 
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required."
+      });
+    }
+
+    const result = await authService.changePassword(userId, current_password, new_password);
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// =========================================================
+// 5. LOGIN (تسجيل الدخول الموحد)
+// =========================================================
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -65,11 +98,11 @@ const login = async (req, res) => {
     if (!email || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "email and password are required." });
+        .json({ success: false, message: "Email and password are required." });
     }
 
     const result = await authService.login(email, password);
-    return res.json(result);
+    return res.status(200).json(result);
   } catch (error) {
     let status = 401;
 
@@ -82,8 +115,9 @@ const login = async (req, res) => {
 };
 
 module.exports = {
- submitAdminRequest,
+  submitAdminRequest,
   forgotPassword,
   resetPassword,
+  changePassword, 
   login,
 };

@@ -131,8 +131,10 @@ async function generatePasswordHash(password) {
 // =========================================================================
 // CATEGORIES
 // =========================================================================
-exports.getAllCategories = () => {
+
+exports.getAllCategories = (facultyId) => {
   return Category.findAll({
+    where: { faculty_id: Number(facultyId) },
     include: [
       {
         model: User,
@@ -154,11 +156,13 @@ exports.createNewCategory = (data) => {
   }).then((category) => {
     const relationPromises = [];
 
+    // 1. ربط الـ Keywords بالـ Category (دي تفضل هنا لأنها تخص الـ Category نفسها)
     if (data.keywords && CategoryKeywords) {
       const keywordList = data.keywords
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean);
+        
       keywordList.forEach((kw) => {
         relationPromises.push(
           CategoryKeywords.create({
@@ -169,47 +173,72 @@ exports.createNewCategory = (data) => {
       });
     }
 
-    const officerIds = Array.isArray(data.officer_ids)
-      ? data.officer_ids
-      : data.responsible_id
-        ? [data.responsible_id]
-        : [];
+    // 🛑 تم حذف جزء الـ CategoryOfficer من هنا تماماً 🛑
 
-    officerIds.forEach((officer_id) => {
-      relationPromises.push(
-        CategoryOfficer.create({
-          category_id: category.id,
-          officer_id,
-        }).catch((err) => console.error("Failed to link officer to category:", err.message)),
-      );
-    });
-
+    // 2. الانتظار حتى تنتهي الـ Keywords ثم عمل Sync مع سيرفر الـ Python
     return Promise.all(relationPromises).then(() => {
       return axios
         .post(`${pythonService.baseUrl}/api/refresh-categories`)
         .then(() => category)
         .catch((err) => {
           console.error(`Python sync failed for category ${category.id}:`, err.message);
-          return category;
+          return category; // بنرجع الـ category حتى لو الـ python وقع عشان العملية متبوظش
         });
     });
   });
 };
 
-exports.updateCategory = (id, data) => {
-  return Category.update(data, { where: { id } }).then((result) => {
-    return axios
-      .post(`${pythonService.baseUrl}/api/refresh-categories`)
-      .then(() => result)
-      .catch((err) => {
-        console.error(`Python sync failed for category update ${id}:`, err.message);
-        return result;
+
+exports.updateCategory = async (id, data) => {
+  // 1. تحديث بيانات الـ Category الأساسية (name, description, sla_hours)
+  await Category.update(data, { where: { id } });
+
+  // 2. تحديث الـ Keywords لو مبعوتة في الـ data
+  if (data.keywords !== undefined) {
+    // أ. امسحي كل الـ Keywords القديمة المرتبطة بالـ Category دي
+    await CategoryKeywords.destroy({ where: { category_id: id } });
+
+    // ب. لو الـ string مش فاضي، قطّعي الكلمات ونزليها من جديد
+    if (data.keywords && data.keywords.trim() !== '') {
+      const keywordList = data.keywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
+
+      const keywordPromises = keywordList.map((kw) => {
+        return CategoryKeywords.create({
+          category_id: id,
+          keyword: kw,
+        });
       });
-  });
+      await Promise.all(keywordPromises);
+    }
+  }
+
+  // 3. عمل الـ Sync مع سيرفر الـ Python بعد ما كل حاجة خلصت (الجدول الرئيسي والـ Keywords)
+  try {
+    await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
+  } catch (err) {
+    console.error(` Python sync failed for category update ${id}:`, err.message);
+    // مش بنعمل throw للـ error هنا عشان الـ API ميرجعش failure للفرونت طالما الداتا اتعدلت في السيكوال بنجاح
+  }
+
+  return { success: true };
 };
 
-exports.softDeleteCategory = (id) => {
-  return Category.update({ is_active: false }, { where: { id } });
+// SOFT DELETE CATEGORY
+exports.softDeleteCategory = async (id) => {
+  // 1. بنخلي الـ is_active بـ false
+  const result = await Category.update({ is_active: false }, { where: { id } });
+
+  // 2. بنبلغ سيرفر الـ Python عشان يشيل الـ Category دي من حسابات التصنيف التلقائي
+  try {
+    await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
+  } catch (err) {
+    console.error(` Python sync failed for category delete ${id}:`, err.message);
+  }
+
+  return result;
 };
 
 // =========================================================================
@@ -538,43 +567,90 @@ exports.confirmImportUsersService = async (importId) => {
 // =========================================================================
 // GENERAL ACCOUNT UPDATES & SYSTEM FUNCTIONS
 // =========================================================================
-exports.getAllUsers = () => {
+
+exports.getAllUsers = (facultyId) => {
   return User.findAll({
+    where: { 
+      faculty_id: Number(facultyId),
+      role: { [Op.ne]: 'admin' } // 🚫 استبعاد أي مستخدم الـ role بتاعه admin
+    },
     attributes: ["id", "full_name", "email", "role", "is_active", "is_also_manager", "manager_title", "officer_title"],
   });
 };
 
-exports.updateUser = (id, data) => {
+exports.updateUser = async (id, data, facultyId) => {
+  const user = await User.findOne({
+    where: { id, faculty_id: Number(facultyId) }
+  });
+ 
+  if (!user) {
+    throw new Error("User not found or does not belong to your faculty.");
+  }
+ 
   return User.update(data, { where: { id } });
 };
+ 
+exports.softDeleteUser = async (id, facultyId) => {
+  const user = await User.findOne({
+    where: { id, faculty_id: Number(facultyId) }
+  });
 
-exports.softDeleteUser = (id) => {
-  return User.update({ is_active: false }, { where: { id } });
+  if (!user) {
+    throw new Error("User not found or does not belong to your faculty.");
+  }
+
+  // عمل soft delete عن طريق تحديث حقل deletedAt أو الـ active status
+  return User.update({ is_active: false }, { where: { id } }); 
+  // أو user.destroy() لو مشغلة paranoid: true في الموديل
 };
-
-exports.setOfficerManagerFlag = async (officerId, is_also_manager, manager_title) => {
-  const officer = await User.findOne({ where: { id: officerId, role: ROLES.OFFICER } });
-  if (!officer) throw new Error("Officer not found");
+ 
+exports.setOfficerManagerFlag = async (officerId, is_also_manager, manager_title, facultyId) => {
+  const officer = await User.findOne({
+    where: { id: officerId, role: ROLES.OFFICER, faculty_id: Number(facultyId) }
+  });
+ 
+  if (!officer) throw new Error("Officer not found or does not belong to your faculty.");
+ 
   await officer.update({
     is_also_manager: !!is_also_manager,
     manager_title: is_also_manager ? manager_title || null : null,
   });
+ 
   return { success: true, officer };
 };
 
 // =========================================================================
 // REGULATIONS
 // =========================================================================
-exports.getAllRegulations = () => {
-  return Regulation.findAll();
-};
 
-exports.createNewRegulation = (data) => {
+// قبل: exports.getAllRegulations = () => { return Regulation.findAll() }
+exports.getAllRegulations = (facultyId) => {
+  return Regulation.findAll({
+    where: { faculty_id: Number(facultyId) }
+  });
+};
+ 
+exports.deleteRegulation = async (id, facultyId) => {
+  const regulation = await Regulation.findOne({
+    where: { id, faculty_id: Number(facultyId) }
+  });
+ 
+  if (!regulation) {
+    throw new Error("Regulation not found or does not belong to your faculty.");
+  }
+ 
+  return Regulation.destroy({ where: { id } });
+};
+ 
+// createNewRegulation already takes faculty_id from data.faculty_id || 3 (the hardcoded
+// fallback). This should instead use the authenticated admin's facultyId directly:
+ 
+exports.createNewRegulation = (data, facultyId) => {
   return Regulation.create({
     article_number: data["article number"],
     content: data.content,
     type: data.type,
-    faculty_id: Number(data.faculty_id) || 3,
+    faculty_id: Number(facultyId), // كان قبل كده Number(data.faculty_id) || 3 -- غير منطقي
   }).then((regulation) => {
     return axios
       .post(`${pythonService.baseUrl}/api/regulations/refresh`)
@@ -585,57 +661,109 @@ exports.createNewRegulation = (data) => {
       });
   });
 };
-
-exports.deleteRegulation = (id) => {
-  return Regulation.destroy({ where: { id } });
-};
-
+ 
 // =========================================================================
 // PRIORITY RULES
 // =========================================================================
-exports.getPriorityRules = () => {
-  return PriorityRules.findAll();
-};
-
-exports.upsertPriorityRule = (data) => {
-  const priorityLevel = Number(data["priority level"]);
-  const description = String(data.description || "");
-  let examplesArray = Array.isArray(data.examples) ? data.examples : typeof data.examples === "string" ? data.examples.split(",").map((e) => e.trim()) : [];
-  const jsonExamples = JSON.stringify(examplesArray);
-
-  return sequelize
-    .query(`SELECT id FROM "PriorityRules" WHERE priority_level = :priorityLevel LIMIT 1`, {
-      replacements: { priorityLevel },
+// NOTE: PriorityRules table has NO faculty_id column - it only has
+// category_id. Isolation must go through the category's faculty_id.
+ 
+// قبل: exports.getPriorityRules = () => { return PriorityRules.findAll() }
+exports.getPriorityRules = (facultyId) => {
+  return sequelize.query(
+    `SELECT pr.* 
+     FROM "PriorityRules" pr
+     JOIN categories c ON c.id = pr.category_id
+     WHERE c.faculty_id = :facultyId`,
+    {
+      replacements: { facultyId: Number(facultyId) },
       type: sequelize.QueryTypes.SELECT,
-    })
+    }
+  );
+};
+ 
+// upsertPriorityRule محتاجة category_id في الـ data، وتتأكد إن الـ category دي
+// بتاعت كلية الأدمن قبل ما تعمل update/insert
+ 
+exports.upsertPriorityRule = async (data, facultyId) => {
+  const priorityLevel = Number(data["priority level"]);
+  const categoryId = Number(data.category_id);
+  const numericFacultyId = Number(facultyId);
+  const description = String(data.description || "");
+ 
+  if (!categoryId) {
+    throw new Error("category_id is required to scope this priority rule to your faculty.");
+  }
+ 
+  // تأكد إن الـ category دي بتاعت كلية الأدمن
+  const category = await Category.findOne({
+    where: { id: categoryId, faculty_id: numericFacultyId }
+  });
+ 
+  if (!category) {
+    throw new Error("This category does not belong to your faculty.");
+  }
+ 
+  let examplesArray = Array.isArray(data.examples)
+    ? data.examples
+    : typeof data.examples === "string"
+      ? data.examples.split(",").map((e) => e.trim())
+      : [];
+  const jsonExamples = JSON.stringify(examplesArray);
+ 
+  return sequelize
+    .query(
+      `SELECT id FROM "PriorityRules" WHERE priority_level = :priorityLevel AND category_id = :categoryId LIMIT 1`,
+      {
+        replacements: { priorityLevel, categoryId },
+        type: sequelize.QueryTypes.SELECT,
+      }
+    )
     .then((rows) => {
       if (rows && rows.length > 0) {
         return sequelize.query(
-          `UPDATE "PriorityRules" SET description = :description, examples = :jsonExamples, "updatedAt" = NOW() WHERE priority_level = :priorityLevel`,
-          { replacements: { description, jsonExamples, priorityLevel }, type: sequelize.QueryTypes.UPDATE }
+          `UPDATE "PriorityRules" 
+           SET description = :description, examples = :jsonExamples, "updatedAt" = NOW() 
+           WHERE priority_level = :priorityLevel AND category_id = :categoryId`,
+          {
+            replacements: { description, jsonExamples, priorityLevel, categoryId },
+            type: sequelize.QueryTypes.UPDATE,
+          }
         );
       } else {
         return sequelize.query(
-          `INSERT INTO "PriorityRules" (priority_level, description, examples, "updatedAt") VALUES (:priorityLevel, :description, :jsonExamples, NOW())`,
-          { replacements: { priorityLevel, description, jsonExamples }, type: sequelize.QueryTypes.INSERT }
+          `INSERT INTO "PriorityRules" (priority_level, description, examples, category_id, "updatedAt") 
+           VALUES (:priorityLevel, :description, :jsonExamples, :categoryId, NOW())`,
+          {
+            replacements: { priorityLevel, description, jsonExamples, categoryId },
+            type: sequelize.QueryTypes.INSERT,
+          }
         );
       }
     });
 };
-
+ 
 // =========================================================================
 // AUDIT LOGS
 // =========================================================================
-exports.getSystemAuditLogs = (filters) => {
+ 
+// قبل: exports.getSystemAuditLogs = (filters) => { ... }
+exports.getSystemAuditLogs = (filters, facultyId) => {
   let whereClause = {};
+ 
   if (filters.user_id) whereClause.user_id = filters.user_id;
   if (filters.entity_type) whereClause.entity_type = filters.entity_type;
   if (filters.from && filters.to) {
     whereClause.createdAt = { [Op.between]: [new Date(filters.from), new Date(filters.to)] };
   }
+ 
   return AuditLog.findAll({
     where: whereClause,
     order: [["createdAt", "DESC"]],
-    include: [{ model: User, attributes: ["full_name"] }],
+    include: [{
+      model: User,
+      attributes: ["full_name"],
+      where: { faculty_id: Number(facultyId) } // فلترة الـ logs بناءً على كلية الـ user اللي عمل الـ action
+    }],
   });
 };
