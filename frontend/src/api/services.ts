@@ -27,8 +27,8 @@ export const officerApi = {
   getDashboard: (category_id?: number | string, officer_id?: number) =>
     apiClient.get('/officer/dashboard', { params: { category_id, officer_id } }),
 
-  getComplaints: (category_id: number) =>
-    apiClient.get('/officer/complaints', { params: { category_id } }),
+  getComplaints: (category_id?: number | string) =>
+    apiClient.get('/officer/complaints', { params: category_id ? { category_id } : {} }),
 
   getComplaintDetails: (id: number | string) =>
     apiClient.get(`/officer/complaints/details/${id}`),
@@ -41,6 +41,9 @@ export const officerApi = {
 
   markAppealReviewed: (id: number | string) =>
     apiClient.patch(`/officer/appeals/${id}/review`, {}),
+  
+  getAllOfficers: () =>
+  apiClient.get('/officer/all'),
 };
 
 // ── Manager ───────────────────────────────────────────────────────────────

@@ -5,8 +5,9 @@ const {
     updateComplaintStatusService,
     getAppealedComplaintsService,
     markAppealReviewedService,
-    getOfficerDashboardStats // دمج دالة الداشبورد هنا
-} = require('../services/officer.service'); 
+    getOfficerDashboardStats,
+    getAllOfficersService  // ← add this
+} = require('../services/officer.service');
 
 // =========================================================
 // 1. Get Department (Category) Complaints
@@ -130,6 +131,20 @@ exports.getDashboard = async (req, res) => {
         return res.status(500).json({ 
             success: false, 
             message: error.message 
+        });
+    }
+};
+// =========================================================
+// 7. Get All Officers
+// =========================================================
+exports.getAllOfficersController = async (req, res) => {
+    try {
+        const data = await getAllOfficersService();
+        return res.status(200).json(data);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 };
