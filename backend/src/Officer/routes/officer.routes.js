@@ -12,8 +12,9 @@ const {
     getAppealedComplaintsController,
     markAppealReviewedController,
     getDashboard,
-    getAllOfficersController
+ getAllOfficersController
 } = require('../controllers/officer.controller'); 
+
 router.get('/all', getAllOfficersController);
 
 router.get('/dashboard', getDashboard);

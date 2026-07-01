@@ -1,4 +1,4 @@
-// استدعاء ملف السيرفس الموحد
+// استدعاء ملف السيرفس الموحد وفك الدوال مباشرة
 const {
     getDepartmentComplaintsService,
     getComplaintDetailsService,
@@ -6,7 +6,7 @@ const {
     getAppealedComplaintsService,
     markAppealReviewedService,
     getOfficerDashboardStats,
-    getAllOfficersService  // ← add this
+    getAllOfficersService  
 } = require('../services/officer.service');
 
 // =========================================================
@@ -46,7 +46,6 @@ exports.getComplaintDetailsController = async (req, res) => {
         });
 
     } catch (error) {
-        // لو الـ Error بسبب الصلاحيات يفضل يرجع 403 (Forbidden) لكن سنتركها رسالة الخطأ القادمة من السيرفس
         return res.status(403).json({
             success: false,
             error: error.message
@@ -61,23 +60,22 @@ exports.updateComplaintStatusController = async (req, res) => {
     try {
         const officerId = req.user.id; 
         const { id } = req.params;
-        const { status, resolution_text } = req.body;
+        const { status, resolution_text } = req.body; 
 
         if (!status) {
             throw new Error('Status field is required.');
         }
 
-        // السيرفس بتعمل تحويل لـ lowercase وتقارن بـ ['in_progress', 'resolved']
-        // هنبعتها مباشرة والسيرفس هتتولى الباقي بأمان
         const formattedStatus = status.toLowerCase();
 
+        // تمرير الـ resolution_text كـ باراميتر ثالث للسيرفس بالترتيب
         const data = await updateComplaintStatusService(id, formattedStatus, resolution_text, officerId);
         return res.status(200).json(data);
 
     } catch (error) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            error: error.message // سيرد بالرسالة: resolution_text is required... في حال النقص
         });
     }
 };
@@ -88,7 +86,7 @@ exports.updateComplaintStatusController = async (req, res) => {
 exports.getAppealedComplaintsController = async (req, res) => {
     try {
         const officerId = req.user.id;
-        const { category_id } = req.query; // بقت اختياري في السيرفس، لو مش مبعوتة بتجيب كله الخاص بالـ officer
+        const { category_id } = req.query;
 
         const data = await getAppealedComplaintsService(officerId, category_id);
         return res.status(200).json({
@@ -109,7 +107,7 @@ exports.getAppealedComplaintsController = async (req, res) => {
 // =========================================================
 exports.markAppealReviewedController = async (req, res) => {
     try {
-        const officerId = req.user.id; // تمريره لمنع التلاعب بتظلمات الكليات الأخرى
+        const officerId = req.user.id; 
         const { id } = req.params;
 
         const data = await markAppealReviewedService(id, officerId);
@@ -128,43 +126,53 @@ exports.markAppealReviewedController = async (req, res) => {
 // =========================================================
 exports.getDashboard = async (req, res) => {
     try {
-        const { category_id } = req.query; 
-        
-        // الأمان: الـ ID ييجي من الـ Token الموثق، ولو مش موجود (حالة الـ Testing بدون Auth Middleware) يشوف الـ Query أو الافتراضي
-        const officerId = req.user?.id || req.query.officer_id || 36; 
+        const officerId = req.user.id; 
+        const { categoryId } = req.query;
 
-        const stats = await getOfficerDashboardStats(officerId, category_id);
-        
-        // لو السيرفس رجعت خطأ عدم صلاحية الـ Category
+        // ✅ تصحيح: استدعاء الدالة المفكوكة مباشرة بدون اسم كائن غير موجود
+        const stats = await getOfficerDashboardStats(officerId, categoryId);
+
         if (stats.error) {
             return res.status(403).json({
                 success: false,
-                error: stats.error
+                message: stats.error
             });
         }
 
-        return res.status(200).json({ 
-            success: true, 
-            data: stats 
+        return res.status(200).json({
+            success: true,
+            data: stats
         });
+
     } catch (error) {
-        return res.status(500).json({ 
-            success: false, 
-            error: error.message 
+        console.error('Error in getDashboard Controller:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal Server Error'
         });
     }
 };
+
 // =========================================================
 // 7. Get All Officers
 // =========================================================
 exports.getAllOfficersController = async (req, res) => {
     try {
-        const data = await getAllOfficersService();
-        return res.status(200).json(data);
+        const currentOfficerId = req.user.id;
+        const facultyId = req.user.faculty_id; 
+
+        // ✅ تصحيح: استدعاء الدالة المفكوكة مباشرة بدون اسم كائن غير موجود
+        const result = await getAllOfficersService(currentOfficerId, facultyId);
+
+        return res.status(200).json({
+            success: true,
+            data: result
+        });
     } catch (error) {
+        console.error('Error in getAllFacultyOfficers Controller:', error);
         return res.status(500).json({
             success: false,
-            error: error.message
+            message: 'Internal Server Error'
         });
     }
 };

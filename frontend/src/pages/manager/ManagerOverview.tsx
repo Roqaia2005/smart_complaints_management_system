@@ -96,7 +96,7 @@ export default function ManagerOverview() {
             <p className="mt-2 text-2xl font-bold">{data?.resolutionRate ?? '0%'}</p>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">SLA breach rate</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Late Response Rate</p>
             <p className="mt-2 text-2xl font-bold">{data?.slaBreachRate ?? '0%'}</p>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">

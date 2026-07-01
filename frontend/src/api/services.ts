@@ -223,6 +223,11 @@ export const authApi = {
 
   resetPassword: (data: { token: string; password: string }) =>
     apiClient.post('/auth/reset-password', data),
+   changePassword: (data: {
+    current_password: string;
+    new_password: string;
+  }) =>
+    apiClient.patch('/auth/change-password', data),
 };
 
 // ── Super Admin ───────────────────────────────────────────────────────────
