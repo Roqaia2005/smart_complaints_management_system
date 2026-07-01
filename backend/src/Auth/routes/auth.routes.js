@@ -2,11 +2,16 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 
-// استدعاء الـ Middleware الخاص بالـ Auth (تأكدي من صحة المسار عندك)
 const authenticate = require("../../Middlewares/auth");
+const { isSuperAdmin } = require("../../Middlewares/authorize");
 
 const {
   submitAdminRequest,
+  getPendingAdminRequestsController,
+  approveAdminRequestController,
+  rejectAdminRequestController,
+  studentRequestOtpController,
+  studentVerifyAndRegisterController,
   forgotPassword,
   resetPassword,
   changePassword,
@@ -15,50 +20,75 @@ const {
 
 const authRoutes = express.Router();
 
-// ==================== 📦 Multer Configuration ====================
+// ==================== Multer config for admin registration document ====================
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/documents/"); // الفولدر اللي هيتحفظ فيه إثباتات الهوية
+    cb(null, "uploads/documents/");
   },
   filename: function (req, file, cb) {
-    // تسمية فريدة للملف: اسم الحقل + التاريخ الحالي + الامتداد الأصلي للملف
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  }
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname),
+    );
+  },
 });
 
-// فلتر للتأكد من إن الملف المرفوع عبارة عن صورة أو PDF فقط لزيادة الأمان
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase(),
+  );
   const mimetype = allowedTypes.test(file.mimetype);
-
-  if (extname && mimetype) {
-    return cb(null, true);
-  } else {
-    cb(new Error("Only images (jpeg/jpg/png) and PDF files are allowed!"));
-  }
+  if (extname && mimetype) return cb(null, true);
+  cb(new Error("Only images (jpeg/jpg/png) and PDF files are allowed!"));
 };
 
-const upload = multer({ 
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // الحد الأقصى لحجم الملف: 5 ميجا بايت
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-// ==================== 🛠️ Routes Defintions ====================
+// ==================== ADMIN REGISTRATION REQUEST (public) ====================
+authRoutes.post(
+  "/admin/register",
+  upload.single("supporting_document"),
+  submitAdminRequest,
+);
 
-// 1. رابط تسجيل الأدمن (يستخدم Multer لاستقبال ملف واحد باسم supporting_document)
-authRoutes.post("/admin/register", upload.single("supporting_document"), submitAdminRequest);
+// ==================== SUPER ADMIN: review pending admin requests (protected) ====================
+authRoutes.get(
+  "/admin/requests/pending",
+  authenticate,
+  isSuperAdmin,
+  getPendingAdminRequestsController,
+);
+authRoutes.post(
+  "/admin/requests/:id/approve",
+  authenticate,
+  isSuperAdmin,
+  approveAdminRequestController,
+);
+authRoutes.post(
+  "/admin/requests/:id/reject",
+  authenticate,
+  isSuperAdmin,
+  rejectAdminRequestController,
+);
 
-// 2. روابط نسيت كلمة المرور وإعادة التعيين (عامة)
+// ==================== STUDENT REGISTRATION (two steps, public) ====================
+authRoutes.post("/student/request-otp", studentRequestOtpController);
+authRoutes.post("/student/verify-register", studentVerifyAndRegisterController);
+
+// ==================== PASSWORD RESET (public) ====================
 authRoutes.post("/forgot-password", forgotPassword);
 authRoutes.post("/reset-password", resetPassword);
 
-// 3. رابط تسجيل الدخول (عام)
-authRoutes.post("/login", login);
-
-// 4. رابط تغيير كلمة المرور من داخل الحساب (🔒 محمي بالـ Token)
+// ==================== CHANGE PASSWORD (protected) ====================
 authRoutes.patch("/change-password", authenticate, changePassword);
+
+// ==================== LOGIN (public, all roles) ====================
+authRoutes.post("/login", login);
 
 module.exports = authRoutes;
