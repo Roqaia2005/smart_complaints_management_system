@@ -16,10 +16,11 @@ import logging
 from groq import Groq
 from dotenv import load_dotenv
 
+from assistant.config import GROQ_MODEL
+
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "openai/gpt-oss-20b"
 
 logger = logging.getLogger(__name__)
 

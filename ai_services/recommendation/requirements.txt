@@ -9,3 +9,6 @@ groq
 python-dotenv
 requests
 psycopg2-binary
+edge-tts
+PyJWT
+python-multipart

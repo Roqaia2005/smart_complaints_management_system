@@ -55,12 +55,14 @@ class User(Base):
     email         = Column(String, nullable=True)
     password_hash = Column(String, nullable=True)
     role          = Column(String, nullable=False)
+    faculty_id    = Column(Integer, ForeignKey("faculties.id"), nullable=True)  # NEW: for data isolation
     is_active     = Column(Boolean, nullable=True)
     createdAt     = Column(DateTime(timezone=True), nullable=False)
     updatedAt     = Column(DateTime(timezone=True), nullable=False)
     deletedAt     = Column(DateTime(timezone=True), nullable=True)
 
     complaints    = relationship("Complaint", back_populates="user")
+    faculty       = relationship("Faculty", backref="users")  # NEW
 
 
 class Complaint(Base):
@@ -107,6 +109,7 @@ class AiRecommendation(Base):
 
     id               = Column(Integer, primary_key=True, autoincrement=True)
     category_id      = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    faculty_id       = Column(Integer, ForeignKey("faculties.id"), nullable=True)  # NEW: for data isolation
     pattern_detected = Column(Text, nullable=True)
     recommendation   = Column(Text, nullable=True)
     root_cause       = Column(Text, nullable=True)
@@ -123,6 +126,7 @@ class AiRecommendation(Base):
     generated_at     = Column(DateTime(timezone=True), nullable=True)  # added in cleanup SQL
 
     category         = relationship("Category", back_populates="recommendations")
+    faculty          = relationship("Faculty", backref="recommendations")  # NEW
 
     @property
     def category_name(self):

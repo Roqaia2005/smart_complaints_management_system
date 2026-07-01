@@ -62,11 +62,12 @@ function App() {
     <Router>
       <Routes>
         {/* <Route path="/login" element={<AuthPages />} /> */}
+
         <Route path="/login" element={<LoginPage />} />
+        {/* <Route path="/" element={<ManagerRecommendations />} /> */}
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
 
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />

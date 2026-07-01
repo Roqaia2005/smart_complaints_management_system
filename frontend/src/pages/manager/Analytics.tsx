@@ -1,6 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import React, { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../../components/ui/card";
 import {
   BarChart,
   Bar,
@@ -15,8 +21,8 @@ import {
   Cell,
   PieChart,
   Pie,
-} from 'recharts';
-import { Badge } from '../../components/ui/badge';
+} from "recharts";
+import { Badge } from "../../components/ui/badge";
 import {
   TrendingUp,
   TrendingDown,
@@ -26,8 +32,8 @@ import {
   AlertTriangle,
   Loader2,
   Tag,
-} from 'lucide-react';
-import { managerApi, studentApi } from '../../api/services';
+} from "lucide-react";
+import { managerApi, studentApi } from "../../api/services";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,10 +81,10 @@ interface Category {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:     '#f59e0b',
-  in_progress: '#3b82f6',
-  resolved:    '#10b981',
-  appealed:    '#ef4444',
+  pending: "#f59e0b",
+  in_progress: "#3b82f6",
+  resolved: "#10b981",
+  appealed: "#ef4444",
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -130,12 +136,16 @@ function HorizontalBarChart({
         layout="vertical"
         margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
       >
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          horizontal={false}
+          stroke="#e2e8f0"
+        />
         <XAxis
           type="number"
           axisLine={false}
           tickLine={false}
-          tick={{ fill: '#64748b', fontSize: 11 }}
+          tick={{ fill: "#64748b", fontSize: 11 }}
         />
         <YAxis
           type="category"
@@ -143,17 +153,22 @@ function HorizontalBarChart({
           axisLine={false}
           tickLine={false}
           width={110}
-          tick={{ fill: '#64748b', fontSize: 11 }}
+          tick={{ fill: "#64748b", fontSize: 11 }}
         />
         <Tooltip
           contentStyle={{
-            borderRadius: '12px',
-            border: 'none',
-            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+            borderRadius: "12px",
+            border: "none",
+            boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
           }}
-          cursor={{ fill: 'rgba(59,130,246,0.05)' }}
+          cursor={{ fill: "rgba(59,130,246,0.05)" }}
         />
-        <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} barSize={16} />
+        <Bar
+          dataKey={dataKey}
+          fill={color}
+          radius={[0, 4, 4, 0]}
+          barSize={16}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -163,7 +178,7 @@ function HorizontalBarChart({
 
 export default function AnalyticsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryId = searchParams.get('category_id') || 'all';
+  const categoryId = searchParams.get("category_id") || "all";
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<Category[]>([]);
@@ -172,25 +187,27 @@ export default function AnalyticsPage() {
 
   // heatmap slices
   const [heatmapCategory, setHeatmapCategory] = useState<HeatmapItem[]>([]);
-  const [heatmapTime, setHeatmapTime]         = useState<HeatmapItem[]>([]);
-  const [heatmapDept, setHeatmapDept]         = useState<HeatmapItem[]>([]);
-  const [topIssues, setTopIssues]             = useState<{ id: number; title: string; count: number }[]>([]);
+  const [heatmapTime, setHeatmapTime] = useState<HeatmapItem[]>([]);
+  const [heatmapDept, setHeatmapDept] = useState<HeatmapItem[]>([]);
+  const [topIssues, setTopIssues] = useState<
+    { id: number; title: string; count: number }[]
+  >([]);
 
   // loading / error
-  const [loadingDashboard,   setLoadingDashboard]   = useState(false);
-  const [loadingDept,        setLoadingDept]         = useState(false);
-  const [loadingHeatmapCat,  setLoadingHeatmapCat]  = useState(false);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [loadingDept, setLoadingDept] = useState(false);
+  const [loadingHeatmapCat, setLoadingHeatmapCat] = useState(false);
   const [loadingHeatmapTime, setLoadingHeatmapTime] = useState(false);
   const [loadingHeatmapDept, setLoadingHeatmapDept] = useState(false);
-  const [loadingTopIssues,   setLoadingTopIssues]   = useState(false);
-  const [loadingCategories,  setLoadingCategories]  = useState(false);
+  const [loadingTopIssues, setLoadingTopIssues] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
-  const [errorDashboard,   setErrorDashboard]   = useState<string | null>(null);
-  const [errorDept,        setErrorDept]         = useState<string | null>(null);
-  const [errorHeatmapCat,  setErrorHeatmapCat]  = useState<string | null>(null);
+  const [errorDashboard, setErrorDashboard] = useState<string | null>(null);
+  const [errorDept, setErrorDept] = useState<string | null>(null);
+  const [errorHeatmapCat, setErrorHeatmapCat] = useState<string | null>(null);
   const [errorHeatmapTime, setErrorHeatmapTime] = useState<string | null>(null);
   const [errorHeatmapDept, setErrorHeatmapDept] = useState<string | null>(null);
-  const [errorTopIssues,   setErrorTopIssues]   = useState<string | null>(null);
+  const [errorTopIssues, setErrorTopIssues] = useState<string | null>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -210,11 +227,11 @@ export default function AnalyticsPage() {
     setLoadingDashboard(true);
     setErrorDashboard(null);
     try {
-      const param = categoryId !== 'all' ? categoryId : undefined;
+      const param = categoryId !== "all" ? categoryId : undefined;
       const res = await managerApi.getOverview(param);
       setDashboard(res.data.data);
     } catch {
-      setErrorDashboard('Failed to load dashboard stats. Please try again.');
+      setErrorDashboard("Failed to load dashboard stats. Please try again.");
     } finally {
       setLoadingDashboard(false);
     }
@@ -227,7 +244,7 @@ export default function AnalyticsPage() {
       const res = await managerApi.getDepartmentPerformance();
       setDepartments(res.data?.departments ?? []);
     } catch {
-      setErrorDept('Failed to load department performance.');
+      setErrorDept("Failed to load department performance.");
     } finally {
       setLoadingDept(false);
     }
@@ -237,12 +254,14 @@ export default function AnalyticsPage() {
     setLoadingHeatmapCat(true);
     setErrorHeatmapCat(null);
     try {
-      const res = await managerApi.getHeatmap('category');
+      const res = await managerApi.getHeatmap("category");
       // sort descending so the longest bar is on top
-      const sorted = [...(res.data?.heatmap ?? [])].sort((a, b) => b.count - a.count);
+      const sorted = [...(res.data?.heatmap ?? [])].sort(
+        (a, b) => b.count - a.count,
+      );
       setHeatmapCategory(sorted);
     } catch {
-      setErrorHeatmapCat('Failed to load category volume.');
+      setErrorHeatmapCat("Failed to load category volume.");
     } finally {
       setLoadingHeatmapCat(false);
     }
@@ -252,10 +271,10 @@ export default function AnalyticsPage() {
     setLoadingHeatmapTime(true);
     setErrorHeatmapTime(null);
     try {
-      const res = await managerApi.getHeatmap('time');
+      const res = await managerApi.getHeatmap("time");
       setHeatmapTime(res.data?.heatmap ?? []);
     } catch {
-      setErrorHeatmapTime('Failed to load complaint trend.');
+      setErrorHeatmapTime("Failed to load complaint trend.");
     } finally {
       setLoadingHeatmapTime(false);
     }
@@ -265,11 +284,13 @@ export default function AnalyticsPage() {
     setLoadingHeatmapDept(true);
     setErrorHeatmapDept(null);
     try {
-      const res = await managerApi.getHeatmap('department');
-      const sorted = [...(res.data?.heatmap ?? [])].sort((a, b) => b.count - a.count);
+      const res = await managerApi.getHeatmap("department");
+      const sorted = [...(res.data?.heatmap ?? [])].sort(
+        (a, b) => b.count - a.count,
+      );
       setHeatmapDept(sorted);
     } catch {
-      setErrorHeatmapDept('Failed to load department load data.');
+      setErrorHeatmapDept("Failed to load department load data.");
     } finally {
       setLoadingHeatmapDept(false);
     }
@@ -279,12 +300,12 @@ export default function AnalyticsPage() {
     setLoadingTopIssues(true);
     setErrorTopIssues(null);
     try {
-            const param = categoryId !== 'all' ? categoryId : null;
+      const param = categoryId !== "all" ? categoryId : null;
 
       const res = await managerApi.getTopIssues(param);
       setTopIssues(res.data?.top_issues ?? []);
     } catch {
-      setErrorTopIssues('Failed to load top issues.');
+      setErrorTopIssues("Failed to load top issues.");
     } finally {
       setLoadingTopIssues(false);
     }
@@ -296,7 +317,13 @@ export default function AnalyticsPage() {
     fetchHeatmapCategory();
     fetchHeatmapTime();
     fetchHeatmapDept();
-  }, [fetchCategories, fetchDepartments, fetchHeatmapCategory, fetchHeatmapTime, fetchHeatmapDept]);
+  }, [
+    fetchCategories,
+    fetchDepartments,
+    fetchHeatmapCategory,
+    fetchHeatmapTime,
+    fetchHeatmapDept,
+  ]);
 
   useEffect(() => {
     fetchDashboard();
@@ -307,10 +334,10 @@ export default function AnalyticsPage() {
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    if (val === 'all') {
-      searchParams.delete('category_id');
+    if (val === "all") {
+      searchParams.delete("category_id");
     } else {
-      searchParams.set('category_id', val);
+      searchParams.set("category_id", val);
     }
     setSearchParams(searchParams);
   };
@@ -318,24 +345,44 @@ export default function AnalyticsPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const selectedCategoryName =
-    categoryId === 'all'
+    categoryId === "all"
       ? null
-      : categories.find((c) => String(c.id) === categoryId)?.name ?? null;
+      : (categories.find((c) => String(c.id) === categoryId)?.name ?? null);
 
   const kpis = dashboard
     ? [
-        { label: 'Total Complaints', value: dashboard.totalComplaints.toLocaleString(), icon: FileText,     trend: 'neutral' as const },
-        { label: 'Resolution Rate',  value: dashboard.resolutionRate,                   icon: CheckCircle,   trend: 'up'      as const },
-        { label: 'SLA Breach Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
-        { label: 'Appeal Rate',      value: dashboard.appealRate,                       icon: Users,         trend: 'neutral' as const },
+        {
+          label: "Total Complaints",
+          value: dashboard.totalComplaints.toLocaleString(),
+          icon: FileText,
+          trend: "neutral" as const,
+        },
+        {
+          label: "Resolution Rate",
+          value: dashboard.resolutionRate,
+          icon: CheckCircle,
+          trend: "up" as const,
+        },
+        {
+          label: "SLA Breach Rate",
+          value: dashboard.slaBreachRate,
+          icon: AlertTriangle,
+          trend: "down" as const,
+        },
+        {
+          label: "Appeal Rate",
+          value: dashboard.appealRate,
+          icon: Users,
+          trend: "neutral" as const,
+        },
       ]
     : [];
 
   const statusPieData = dashboard
     ? Object.entries(dashboard.statusBreakdown).map(([key, val]) => ({
-        name: key.replace('_', ' '),
+        name: key.replace("_", " "),
         value: val,
-        fill: STATUS_COLORS[key] ?? '#94a3b8',
+        fill: STATUS_COLORS[key] ?? "#94a3b8",
       }))
     : [];
 
@@ -343,16 +390,20 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-
       {/* ── Header + Filter ──────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">System Insights</h1>
-          <p className="text-muted-foreground">Monitor performance metrics and workflow health</p>
+          <p className="text-muted-foreground">
+            Monitor performance metrics and workflow health
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <label htmlFor="category-filter" className="text-sm font-medium text-muted-foreground">
+          <label
+            htmlFor="category-filter"
+            className="text-sm font-medium text-muted-foreground"
+          >
             Category
           </label>
           <select
@@ -364,45 +415,84 @@ export default function AnalyticsPage() {
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
-              <option key={c.id} value={String(c.id)}>{c.name}</option>
+              <option key={c.id} value={String(c.id)}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* ── KPI Cards ────────────────────────────────────────────────────── */}
+      {/* ── Executive Summary ───────────────────────────────────────────── */}
       {errorDashboard && <ErrorBanner message={errorDashboard} />}
 
       {loadingDashboard ? (
         <LoadingOverlay />
       ) : dashboard ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {kpis.map((kpi, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <kpi.icon size={20} />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <Card className="border-primary/10 bg-gradient-to-br from-primary/10 via-background to-accent/10 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Operational pulse
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold">
+                    {dashboard.totalComplaints.toLocaleString()} active
+                    complaints
+                  </h3>
+                  <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                    The current outlook indicates healthy resolution momentum
+                    with a moderate rise in escalations that deserves attention.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-primary/10 bg-background/70 px-4 py-3 text-sm">
+                  <div className="font-semibold text-primary">
+                    Recommended focus
                   </div>
-                  {kpi.trend !== 'neutral' && (
-                    <Badge variant={kpi.trend === 'up' ? 'success' : 'destructive'} className="gap-1">
-                      {kpi.trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                    </Badge>
-                  )}
+                  <div className="text-muted-foreground">
+                    Priority queue review and appeals response.
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
-                  <h3 className="text-2xl font-bold">{kpi.value}</h3>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {kpis.map((kpi, i) => (
+              <Card key={i} className="border-border/70 bg-card/80 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="rounded-xl bg-primary/10 p-2 text-primary">
+                      <kpi.icon size={20} />
+                    </div>
+                    {kpi.trend !== "neutral" && (
+                      <Badge
+                        variant={kpi.trend === "up" ? "success" : "destructive"}
+                        className="gap-1"
+                      >
+                        {kpi.trend === "up" ? (
+                          <TrendingUp size={12} />
+                        ) : (
+                          <TrendingDown size={12} />
+                        )}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {kpi.label}
+                    </p>
+                    <h3 className="text-2xl font-bold">{kpi.value}</h3>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : null}
 
       {/* ── Row 1: Complaint Trend (time) + Status Breakdown ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
         {/* Monthly Complaint Trend — Area Chart */}
         <Card>
           <CardHeader>
@@ -421,25 +511,37 @@ export default function AnalyticsPage() {
                 <AreaChart data={heatmapTime} margin={{ left: -10, right: 8 }}>
                   <defs>
                     <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
+                      <stop
+                        offset="5%"
+                        stopColor="#3b82f6"
+                        stopOpacity={0.25}
+                      />
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#e2e8f0"
+                  />
                   <XAxis
                     dataKey="label"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tick={{ fill: "#64748b", fontSize: 11 }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tick={{ fill: "#64748b", fontSize: 11 }}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(v: number) => [v, 'Complaints']}
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "none",
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    }}
+                    formatter={(value) => [value ?? 0, "Complaints"]}
                   />
                   <Area
                     type="monotone"
@@ -447,7 +549,7 @@ export default function AnalyticsPage() {
                     stroke="#3b82f6"
                     strokeWidth={2}
                     fill="url(#trendGrad)"
-                    dot={{ r: 3, fill: '#3b82f6' }}
+                    dot={{ r: 3, fill: "#3b82f6" }}
                     activeDot={{ r: 5 }}
                   />
                 </AreaChart>
@@ -493,16 +595,28 @@ export default function AnalyticsPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v: number, name: string) => [`${v}%`, name]}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value, name) => [
+                        `${value ?? 0}%`,
+                        String(name),
+                      ]}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-4">
                   {statusPieData.map((entry, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
-                      <span className="text-xs font-medium capitalize">{entry.name} ({entry.value}%)</span>
+                      <div
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: entry.fill }}
+                      />
+                      <span className="text-xs font-medium capitalize">
+                        {entry.name} ({entry.value}%)
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -514,12 +628,13 @@ export default function AnalyticsPage() {
 
       {/* ── Row 2: Category Volume + Department Load ──────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
         {/* Requests by Category — Horizontal Bar (replaces pie) */}
         <Card>
           <CardHeader>
             <CardTitle>Requests by Category</CardTitle>
-            <CardDescription>Complaint volume per category, ranked highest first</CardDescription>
+            <CardDescription>
+              Complaint volume per category, ranked highest first
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingHeatmapCat ? (
@@ -543,7 +658,9 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Complaint Load by Department</CardTitle>
-            <CardDescription>Which departments generate the most complaints</CardDescription>
+            <CardDescription>
+              Which departments generate the most complaints
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingHeatmapDept ? (
@@ -568,7 +685,10 @@ export default function AnalyticsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Department Performance</CardTitle>
-          <CardDescription>Total vs resolved complaints and average resolution hours per department</CardDescription>
+          <CardDescription>
+            Total vs resolved complaints and average resolution hours per
+            department
+          </CardDescription>
         </CardHeader>
         <CardContent className="h-[320px]">
           {loadingDept ? (
@@ -580,30 +700,65 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={departments} margin={{ left: -10, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e2e8f0"
+                />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  tick={{ fill: "#64748b", fontSize: 11 }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: "#64748b", fontSize: 12 }}
                 />
                 <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  cursor={{ fill: 'rgba(59,130,246,0.05)' }}
-                  formatter={(value: number, name: string) => [
-                    name === 'avg_hours' ? `${value}h` : value,
-                    name === 'total' ? 'Total' : name === 'resolved' ? 'Resolved' : 'Avg Hours',
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "none",
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                  }}
+                  cursor={{ fill: "rgba(59,130,246,0.05)" }}
+                  formatter={(value, name) => [
+                    name === "avg_hours" ? `${value ?? 0}h` : (value ?? 0),
+                    name === "total"
+                      ? "Total"
+                      : name === "resolved"
+                        ? "Resolved"
+                        : "Avg Hours",
                   ]}
                 />
-                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours'} />
-                <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
-                <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
-                <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
+                <Legend
+                  formatter={(val) =>
+                    val === "total"
+                      ? "Total"
+                      : val === "resolved"
+                        ? "Resolved"
+                        : "Avg Hours"
+                  }
+                />
+                <Bar
+                  dataKey="total"
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                />
+                <Bar
+                  dataKey="resolved"
+                  fill="#10b981"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                />
+                <Bar
+                  dataKey="avg_hours"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -612,7 +767,6 @@ export default function AnalyticsPage() {
 
       {/* ── Row 4: Officer Performance + Top Issues ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
         {/* Officer Performance — filtered by selected category */}
         <Card>
           <CardHeader>
@@ -624,7 +778,9 @@ export default function AnalyticsPage() {
                   <Tag size={10} /> {selectedCategoryName}
                 </span>
               ) : (
-                <span className="ml-1 text-xs text-muted-foreground">— select a category to filter</span>
+                <span className="ml-1 text-xs text-muted-foreground">
+                  — select a category to filter
+                </span>
               )}
             </CardDescription>
           </CardHeader>
@@ -632,26 +788,48 @@ export default function AnalyticsPage() {
             {loadingDashboard ? (
               <LoadingOverlay />
             ) : !dashboard || dashboard.officerPerformance.length === 0 ? (
-              <EmptyState label={selectedCategoryName ? `No officers assigned to ${selectedCategoryName}.` : 'No officer data available.'} />
+              <EmptyState
+                label={
+                  selectedCategoryName
+                    ? `No officers assigned to ${selectedCategoryName}.`
+                    : "No officer data available."
+                }
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="pb-2 pr-4 font-medium">Officer</th>
-                      <th className="pb-2 pr-4 font-medium text-center">Resolved</th>
-                      <th className="pb-2 pr-4 font-medium text-center">Avg. Time</th>
+                      <th className="pb-2 pr-4 font-medium text-center">
+                        Resolved
+                      </th>
+                      <th className="pb-2 pr-4 font-medium text-center">
+                        Avg. Time
+                      </th>
                       <th className="pb-2 font-medium text-center">SLA</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dashboard.officerPerformance.map((officer) => (
                       <tr key={officer.id} className="border-b last:border-0">
-                        <td className="py-2 pr-4 font-medium">{officer.full_name}</td>
-                        <td className="py-2 pr-4 text-center">{officer.totalResolved}</td>
-                        <td className="py-2 pr-4 text-center text-muted-foreground">{officer.avgResolutionTime}</td>
+                        <td className="py-2 pr-4 font-medium">
+                          {officer.full_name}
+                        </td>
+                        <td className="py-2 pr-4 text-center">
+                          {officer.totalResolved}
+                        </td>
+                        <td className="py-2 pr-4 text-center text-muted-foreground">
+                          {officer.avgResolutionTime}
+                        </td>
                         <td className="py-2 text-center">
-                          <Badge variant={parseInt(officer.slaCompliance) >= 90 ? 'success' : 'destructive'}>
+                          <Badge
+                            variant={
+                              parseInt(officer.slaCompliance) >= 90
+                                ? "success"
+                                : "destructive"
+                            }
+                          >
                             {officer.slaCompliance}
                           </Badge>
                         </td>
@@ -671,7 +849,7 @@ export default function AnalyticsPage() {
             <CardDescription>
               {selectedCategoryName
                 ? `Most common issues in ${selectedCategoryName}`
-                : 'Top recurring issues across all categories'}
+                : "Top recurring issues across all categories"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -684,12 +862,18 @@ export default function AnalyticsPage() {
             ) : (
               <ol className="space-y-2">
                 {topIssues.map((issue) => (
-                  <li key={issue.id} className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                  <li
+                    key={issue.id}
+                    className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
+                  >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                       {issue.id}
                     </span>
                     <span className="flex-1 leading-snug">{issue.title}</span>
-                    <Badge variant="secondary" className="ml-auto flex-shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className="ml-auto flex-shrink-0"
+                    >
                       {issue.count}×
                     </Badge>
                   </li>
@@ -699,7 +883,6 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }
