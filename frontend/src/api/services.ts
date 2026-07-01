@@ -36,7 +36,7 @@ export const officerApi = {
   updateComplaintStatus: (id: number | string, status: string, resolution_text?: string) =>
     apiClient.patch(`/officer/complaints/${id}/status`, { status, resolution_text }),
 
-  getAppeals: (category_id: number) =>
+  getAppeals: (category_id?: number) =>
     apiClient.get('/officer/appeals', { params: { category_id } }),
 
   markAppealReviewed: (id: number | string) =>
@@ -44,6 +44,10 @@ export const officerApi = {
   
   getAllOfficers: () =>
   apiClient.get('/officer/all'),
+
+   // Returns only the categories assigned to the logged-in officer via CategoryOfficer table
+  getAssignedCategories: () =>
+    apiClient.get('/officer/categories'),
 };
 
 // ── Manager ───────────────────────────────────────────────────────────────

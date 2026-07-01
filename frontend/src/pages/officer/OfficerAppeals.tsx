@@ -8,66 +8,60 @@ import {
   History, AlertCircle, Brain
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { officerApi, studentApi } from '../../api/services';
+import { officerApi } from '../../api/services';
 import type { Appeal } from '../../types/api';
-
+ 
 interface BackendCategory {
   id: number;
   name: string;
 }
-
+ 
 export default function OfficerAppeals() {
-  const [appeals, setAppeals]   = useState<Appeal[]>([]);
+  const [appeals, setAppeals]     = useState<Appeal[]>([]);
   const [categories, setCategories] = useState<BackendCategory[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(1);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [marking, setMarking]   = useState<number | null>(null);
-  const [toast, setToast]       = useState<string | null>(null);
-
-  // Fetch Categories on Mount
+ 
+  // undefined = "All" — no category_id sent to backend
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
+ 
+  const [loading, setLoading]         = useState(true);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [marking, setMarking]         = useState<number | null>(null);
+  const [toast, setToast]             = useState<string | null>(null);
+ 
+  // Fetch only THIS officer's assigned categories — same source as dashboard
   useEffect(() => {
-    studentApi.getCategories()
-      .then(res => {
-        const cats = res.data.categories || [];
-        setCategories(cats);
-        if (cats.length > 0) {
-          const hasCat1 = cats.some((c: any) => c.id === 1);
-          if (!hasCat1) {
-            setSelectedCategoryId(cats[0].id);
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Failed to load categories', err);
-      });
+    setLoadingCats(true);
+    officerApi.getAssignedCategories()
+      .then(res => setCategories(res.data?.categories ?? []))
+      .catch(err => console.error('Failed to load assigned categories', err))
+      .finally(() => setLoadingCats(false));
   }, []);
-
+ 
   const loadAppeals = React.useCallback(() => {
     setLoading(true);
     setError(null);
     officerApi.getAppeals(selectedCategoryId)
       .then(res => {
         const rawAppeals = res.data.appeals || [];
-        // Map backend custom fields (appeal_id, complaint, appeal_reason, appeal_date) to frontend format
         const mappedAppeals: Appeal[] = rawAppeals.map((a: any) => ({
           id: a.appeal_id,
           complaint_id: a.complaint?.id,
           reason: a.appeal_reason,
           status: a.status || 'pending',
           createdAt: a.appeal_date,
-          Complaint: a.complaint
+          Complaint: a.complaint,
         }));
         setAppeals(mappedAppeals);
       })
       .catch(err => setError(err.response?.data?.error || err.message))
       .finally(() => setLoading(false));
   }, [selectedCategoryId]);
-
+ 
   useEffect(() => {
     loadAppeals();
   }, [loadAppeals]);
-
+ 
   const handleMarkReviewed = async (id: number) => {
     setMarking(id);
     try {
@@ -82,7 +76,6 @@ export default function OfficerAppeals() {
       setMarking(null);
     }
   };
-
   return (
     <div className="space-y-8 animate-in">
       {/* Toast */}
@@ -102,10 +95,14 @@ export default function OfficerAppeals() {
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Department:</span>
             <select
-              value={selectedCategoryId}
-              onChange={e => setSelectedCategoryId(parseInt(e.target.value, 10))}
+              value={selectedCategoryId ?? 'all'}
+              onChange={e => {
+                const val = e.target.value;
+                setSelectedCategoryId(val === 'all' ? undefined : parseInt(val, 10));
+              }}
               className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-blue-600 outline-none text-slate-800 dark:text-slate-200 font-semibold"
             >
+              <option value="all">All Categories</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}

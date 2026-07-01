@@ -12,7 +12,8 @@ const {
     getAppealedComplaintsController,
     markAppealReviewedController,
     getDashboard,
- getAllOfficersController
+    getAllOfficersController,
+    getAssignedCategoriesController
 } = require('../controllers/officer.controller'); 
 
 router.get('/all', getAllOfficersController);
@@ -23,5 +24,5 @@ router.get('/complaints', getDepartmentComplaintsController);
 router.patch('/complaints/:id/status', updateComplaintStatusController);
 router.get('/appeals', getAppealedComplaintsController);
 router.patch('/appeals/:id/review', markAppealReviewedController);
-
+router.get('/categories', getAssignedCategoriesController);
 module.exports = router;
