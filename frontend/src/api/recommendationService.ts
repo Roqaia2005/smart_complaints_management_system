@@ -1,13 +1,22 @@
 import axios from 'axios';
 import type { Recommendation } from '@/types/recommendation';
+import { useAuthStore } from '../store/authStore';
 
-const RECOMMENDATION_API_URL = import.meta.env.VITE_RECOMMENDATION_API_URL || 'http://127.0.0.1:5000';
+const RECOMMENDATION_API_URL ='http://127.0.0.1:5000';
 
 const api = axios.create({
   baseURL: RECOMMENDATION_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // ── DSS types (Decision Support System) ──────────────────────────────────

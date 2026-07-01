@@ -7,6 +7,41 @@ Final version for clean Supabase PostgreSQL schema.
 Table naming after cleanup:
   lowercase:   categories, faculties, users
   PascalCase:  Complaints, Appeals, AiRecommendations
+
+CHANGES IN THIS VERSION
+------------------------
+1. FIXED: fetch_complaints() previously always pulled the 200 most
+   recent complaints SYSTEM-WIDE (LIMIT 200, no faculty filter), and
+   run_recommendation_pipeline() filtered faculty AFTER that truncation.
+   That meant a faculty whose complaints weren't among the globally
+   most-recent 200 could get zero or badly incomplete recommendations,
+   even with plenty of their own data -- the isolation feature only
+   really worked for whichever faculty happened to be most active.
+
+   fetch_complaints() now takes an optional faculty_id parameter and
+   filters at the SQL level (joining through categories.faculty_id)
+   BEFORE the LIMIT is applied, so each faculty gets its own most-recent
+   200 complaints rather than competing for a shared global slice.
+
+   Backward compatible: faculty_id defaults to None (no filter), so
+   dss_routes.py and assistant/services/analytics.py -- which still call
+   fetch_complaints(db) with no faculty argument -- are unaffected. Note
+   that means those two callers are STILL unscoped by faculty; that is a
+   separate, bigger piece of work (touches caching, the voice assistant
+   snapshot, and DSS endpoints) that hasn't been done yet.
+
+2. FIXED: update_status() (PATCH /api/manager/recommendations/{rec_id})
+   previously had no ownership check at all -- any authenticated manager
+   could update ANY recommendation by id, including ones belonging to a
+   different faculty (IDOR). It now loads the current user's faculty_id
+   and rejects the update with 403 if the recommendation belongs to a
+   different faculty.
+
+   ASSUMPTION (please confirm/adjust): admin and super_admin roles are
+   exempt from this faculty check and may update any recommendation,
+   since they're presumably cross-faculty roles. Managers are strictly
+   scoped to their own faculty_id. If admins should ALSO be
+   faculty-scoped, remove the role exemption below.
 """
 
 import os
@@ -18,14 +53,16 @@ from typing import Optional
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from groq import Groq
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
+from assistant.config import GROQ_MODEL
+from assistant.services.auth import authenticate_assistant_user, AuthenticatedUser
 from database import get_db
-from models import AiRecommendation
+from models import AiRecommendation, Category, Faculty, User
 from translation import translate_to_english
 from dss_analytics import (
     apply_analytical_root_cause,
@@ -36,11 +73,41 @@ from dss_analytics import (
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "openai/gpt-oss-20b"
 CACHE_HOURS  = int(os.getenv("RECOMMENDATION_CACHE_HOURS", "24"))
+
+# Tunable analysis parameters. Previously hardcoded (180 days, LIMIT 200,
+# minimum 5 complaints per category). Now env-configurable so these can be
+# adjusted as the dataset grows or as faculty-level volume becomes clearer,
+# without a code change.
+#
+# ANALYSIS_WINDOW_DAYS: how far back complaints are considered "recent"
+#   for risk/trend analysis. This is a business decision (how current does
+#   data need to be to matter), not something auto-tuned from data volume.
+#
+# COMPLAINT_FETCH_LIMIT: max rows fetched per query. Raised from 200 to a
+#   default of 500 now that faculty filtering happens at the SQL level
+#   (before this limit is applied) rather than truncating a shared global
+#   pool. fetch_complaints() logs a warning if a query returns exactly
+#   this many rows, since that's a signal the true count may be higher and
+#   silently truncated -- watch for that warning and raise the limit if
+#   you see it for a real faculty.
+#
+# MIN_COMPLAINTS_THRESHOLD: minimum complaints a category needs (in the
+#   analysis window) before compute_statistics() considers it statistically
+#   significant enough to analyze. Lower this if faculty-scoped isolation
+#   is causing legitimate categories to fall under the bar; raising it
+#   makes that problem worse, not better -- see compute_statistics()
+#   docstring.
+ANALYSIS_WINDOW_DAYS      = int(os.getenv("ANALYSIS_WINDOW_DAYS", "180"))
+COMPLAINT_FETCH_LIMIT     = int(os.getenv("COMPLAINT_FETCH_LIMIT", "500"))
+MIN_COMPLAINTS_THRESHOLD  = int(os.getenv("MIN_COMPLAINTS_THRESHOLD", "5"))
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Roles exempt from per-faculty ownership checks (see update_status).
+# See ASSUMPTION note in the module docstring above.
+CROSS_FACULTY_ROLES = {"admin", "super_admin"}
 
 
 # ─────────────────────────────────────────────
@@ -77,7 +144,11 @@ class StatusUpdate(BaseModel):
 # Step 1: Fetch complaints
 # ─────────────────────────────────────────────
 
-FETCH_SQL = text("""
+# Base query, faculty filter is appended conditionally in fetch_complaints().
+# window_days and fetch_limit are bind parameters (see ANALYSIS_WINDOW_DAYS
+# and COMPLAINT_FETCH_LIMIT above) instead of hardcoded literals, so both
+# can be tuned via env vars without touching this query.
+_FETCH_SQL_BASE = """
     SELECT
         c.id,
         c.problem,
@@ -92,17 +163,54 @@ FETCH_SQL = text("""
         (SELECT COUNT(*) FROM "Appeals" a WHERE a.complaint_id = c.id) AS has_appeal
     FROM "Complaints" c
     JOIN categories cat ON c.category_id = cat.id
-    WHERE c."createdAt" >= NOW() - INTERVAL '180 days'
+    WHERE c."createdAt" >= NOW() - make_interval(days => :window_days)
+    {faculty_clause}
     ORDER BY c."createdAt" DESC
-    LIMIT 200
-""")
+    LIMIT :fetch_limit
+"""
+
+FETCH_SQL = text(_FETCH_SQL_BASE.format(faculty_clause=""))
+FETCH_SQL_BY_FACULTY = text(_FETCH_SQL_BASE.format(faculty_clause="AND cat.faculty_id = :faculty_id"))
 
 
-def fetch_complaints(db: Session) -> pd.DataFrame:
-    result = db.execute(FETCH_SQL)
+def fetch_complaints(
+    db: Session,
+    faculty_id: Optional[int] = None,
+    window_days: int = ANALYSIS_WINDOW_DAYS,
+    fetch_limit: int = COMPLAINT_FETCH_LIMIT,
+) -> pd.DataFrame:
+    """Fetch the most recent complaints within window_days (default from
+    ANALYSIS_WINDOW_DAYS env var), capped at fetch_limit rows (default from
+    COMPLAINT_FETCH_LIMIT env var).
+
+    If faculty_id is given, filtering happens at the SQL level (via
+    categories.faculty_id) BEFORE the LIMIT is applied, so each faculty
+    gets its own most-recent rows rather than competing for a shared
+    global slice. If faculty_id is None, behavior is unscoped/global --
+    this is what dss_routes.py and assistant/services/analytics.py use
+    for managers/admins with no single faculty.
+
+    Logs a warning when the result hits fetch_limit exactly, since that's
+    a signal the true count may be higher and got silently truncated --
+    if you see this warning for a real faculty, raise
+    COMPLAINT_FETCH_LIMIT.
+    """
+    params = {"window_days": window_days, "fetch_limit": fetch_limit}
+    if faculty_id is not None:
+        params["faculty_id"] = faculty_id
+        result = db.execute(FETCH_SQL_BY_FACULTY, params)
+    else:
+        result = db.execute(FETCH_SQL, params)
     rows   = result.fetchall()
     cols   = list(result.keys())
     df     = pd.DataFrame(rows, columns=cols)
+
+    if len(df) >= fetch_limit:
+        logger.warning(
+            "fetch_complaints hit fetch_limit=%d (faculty_id=%s, window_days=%d) -- "
+            "results may be silently truncated. Consider raising COMPLAINT_FETCH_LIMIT.",
+            fetch_limit, faculty_id, window_days,
+        )
 
     if df.empty:
         return df
@@ -133,7 +241,17 @@ def fetch_complaints(db: Session) -> pd.DataFrame:
 # Step 2: Statistical analysis
 # ─────────────────────────────────────────────
 
-def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
+def compute_statistics(df: pd.DataFrame, min_complaints: int = MIN_COMPLAINTS_THRESHOLD) -> pd.DataFrame:
+    """Aggregate per-category statistics.
+
+    min_complaints: categories with fewer complaints than this in the
+    analysis window are dropped as not statistically significant (default
+    from MIN_COMPLAINTS_THRESHOLD env var). Lowering this surfaces more
+    categories per faculty at the cost of confidence per finding; raising
+    it does the opposite and, with faculty-scoped data, will drop MORE
+    categories, not fewer -- see the constant's docstring near the top of
+    this file before changing the default.
+    """
     def safe_mode(series):
         m = series.mode()
         return m.iloc[0] if not m.empty else "N/A"
@@ -152,7 +270,7 @@ def compute_statistics(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    stats = stats[stats["complaint_count"] >= 5].copy()
+    stats = stats[stats["complaint_count"] >= min_complaints].copy()
 
     stats["avg_res_hours"]     = stats["avg_res_hours"].fillna(0).round(1)
     stats["appeal_rate_pct"]   = (stats["appeal_rate"].fillna(0)        * 100).round(1)
@@ -285,23 +403,27 @@ def call_groq(prompt: str) -> dict:
 # Step 5: Cache check & save
 # ─────────────────────────────────────────────
 
-def get_cached(db: Session, category_id: int) -> Optional[AiRecommendation]:
+def get_cached(db: Session, category_id: int, faculty_id: Optional[int] = None) -> Optional[AiRecommendation]:
     cutoff = datetime.utcnow() - timedelta(hours=CACHE_HOURS)
-    return (
+    query = (
         db.query(AiRecommendation)
         .filter(
             AiRecommendation.category_id == category_id,
             AiRecommendation.generated_at >= cutoff,
         )
-        .order_by(AiRecommendation.generated_at.desc())
-        .first()
     )
+    # Filter by faculty if provided
+    if faculty_id is not None:
+        query = query.filter(AiRecommendation.faculty_id == faculty_id)
+
+    return query.order_by(AiRecommendation.generated_at.desc()).first()
 
 
-def save_recommendation(db, category_id, location, stats, groq_result, keywords):
+def save_recommendation(db, category_id, faculty_id, location, stats, groq_result, keywords):
     now = datetime.utcnow()
     rec = AiRecommendation(
         category_id      = category_id,
+        faculty_id       = faculty_id,  # NEW: store faculty for data isolation
         location         = location,
         pattern_detected = groq_result.get("pattern_detected", ""),
         recommendation   = groq_result.get("recommendation", ""),
@@ -327,17 +449,19 @@ def save_recommendation(db, category_id, location, stats, groq_result, keywords)
 # Main pipeline
 # ─────────────────────────────────────────────
 
-def run_recommendation_pipeline(db: Session) -> list:
-    logger.info("Starting recommendation pipeline...")
+def run_recommendation_pipeline(db: Session, faculty_id: int) -> list:
+    logger.info("Starting recommendation pipeline for faculty_id=%s...", faculty_id)
 
-    df = fetch_complaints(db)
+    # FIXED: faculty filter now applied at the SQL level (before LIMIT 200),
+    # instead of fetching the global top-200 and filtering afterward.
+    df = fetch_complaints(db, faculty_id=faculty_id)
     if df.empty:
-        logger.warning("No complaints found in the last 180 days.")
+        logger.warning("No complaints found for faculty_id=%s in the last 180 days.", faculty_id)
         return []
 
     stats_df = compute_statistics(df)
     if stats_df.empty:
-        logger.warning("No groups with 5+ complaints found.")
+        logger.warning("No groups with 5+ complaints found for faculty_id=%s.", faculty_id)
         return []
 
     # DSS analytical layer — root cause analysis & risk scoring (data-driven, pre-LLM)
@@ -355,10 +479,10 @@ def run_recommendation_pipeline(db: Session) -> list:
         cat_id   = int(row["category_id"])
         location = str(row["top_location"]) if row["top_location"] else "Various"
 
-        # Cache check
-        cached = get_cached(db, cat_id)
+        # Cache check with faculty filtering
+        cached = get_cached(db, cat_id, faculty_id)
         if cached:
-            logger.info("Cache hit: category=%s", cat_id)
+            logger.info("Cache hit: category=%s faculty=%s", cat_id, faculty_id)
             results.append(cached)
             continue
 
@@ -400,10 +524,11 @@ def run_recommendation_pipeline(db: Session) -> list:
             logger.error("Groq failed for cat=%s: %s", cat_id, exc)
             continue
 
-        rec = save_recommendation(db, cat_id, location, row.to_dict(), groq_result, keywords)
+        # Save recommendation with user's faculty_id
+        rec = save_recommendation(db, cat_id, faculty_id, location, row.to_dict(), groq_result, keywords)
         results.append(rec)
 
-    logger.info("Pipeline complete. %d recommendations produced.", len(results))
+    logger.info("Pipeline complete. %d recommendations produced for faculty=%s.", len(results), faculty_id)
     return results
 
 
@@ -412,9 +537,22 @@ def run_recommendation_pipeline(db: Session) -> list:
 # ─────────────────────────────────────────────
 
 @router.post("/api/chat/recommendations", response_model=list[RecommendationOut])
-def generate_recommendations(db: Session = Depends(get_db)):
+def generate_recommendations(
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+):
+    # Get user's faculty_id for data isolation
+    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    user = db.query(User).filter(User.id == current_user.id).first()
+
+    if not user or not user.faculty_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User must be assigned to a faculty to generate recommendations."
+        )
+
     try:
-        return run_recommendation_pipeline(db)
+        return run_recommendation_pipeline(db, user.faculty_id)
     except Exception as exc:
         logger.exception("Pipeline error")
         raise HTTPException(status_code=500, detail=str(exc))
@@ -425,17 +563,36 @@ def list_recommendations(
     status:      Optional[str] = None,
     category_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
 ):
+    # Authenticate and get user for faculty filtering
+    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+
+    # Get user's faculty_id for data isolation
+    user = db.query(User).filter(User.id == current_user.id).first()
+
     query = db.query(AiRecommendation)
+
+    # Filter by faculty if user has one (data isolation)
+    if user and user.faculty_id:
+        query = query.filter(AiRecommendation.faculty_id == user.faculty_id)
+
     if status:
         query = query.filter(AiRecommendation.status == status)
     if category_id:
         query = query.filter(AiRecommendation.category_id == category_id)
+
     return query.order_by(AiRecommendation.generated_at.desc()).all()
 
 
 @router.patch("/api/manager/recommendations/{rec_id}", response_model=RecommendationOut)
-def update_status(rec_id: int, body: StatusUpdate, db: Session = Depends(get_db)):
+def update_status(
+    rec_id: int,
+    body: StatusUpdate,
+    db: Session = Depends(get_db),
+    authorization: str | None = Header(default=None),
+):
+    current_user = authenticate_assistant_user(db=db, authorization=authorization)
     allowed = {"implemented", "ignored"}
     if body.status not in allowed:
         raise HTTPException(status_code=400, detail=f"status must be one of: {allowed}")
@@ -443,6 +600,26 @@ def update_status(rec_id: int, body: StatusUpdate, db: Session = Depends(get_db)
     rec = db.query(AiRecommendation).filter(AiRecommendation.id == rec_id).first()
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
+
+    # FIXED (IDOR): previously any authenticated manager could update ANY
+    # recommendation regardless of faculty. Now: managers may only update
+    # recommendations belonging to their own faculty. admin/super_admin are
+    # exempt (see CROSS_FACULTY_ROLES docstring note -- confirm this is the
+    # intended policy).
+    if current_user.role not in CROSS_FACULTY_ROLES:
+        user = db.query(User).filter(User.id == current_user.id).first()
+        user_faculty_id = user.faculty_id if user else None
+
+        if not user_faculty_id:
+            raise HTTPException(
+                status_code=403,
+                detail="User must be assigned to a faculty to update recommendations.",
+            )
+        if rec.faculty_id != user_faculty_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to update recommendations for another faculty.",
+            )
 
     rec.status    = body.status
     rec.updatedAt = datetime.utcnow()

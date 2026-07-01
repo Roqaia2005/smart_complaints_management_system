@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { getRoleHomeRoute } from './auth/auth.shared';
 
+
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuthStore();
 
@@ -11,3 +12,4 @@ export default function DashboardPage() {
 
   return <Navigate to={getRoleHomeRoute(user.role)} replace />;
 }
+

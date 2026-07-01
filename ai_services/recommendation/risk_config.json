@@ -1,0 +1,81 @@
+{
+  "_comment": "DSS Risk Engine Configuration v2.0 — edit weights and thresholds here, never in Python code.",
+
+  "risk_model": "weighted_linear_v1",
+
+  "weights": {
+    "_comment": "Must sum to 1.0. Each factor contributes (raw_value * weight * 100) to the risk score.",
+    "unresolved_ratio": 0.35,
+    "high_priority":    0.30,
+    "appeal_rate":      0.20,
+    "aging":            0.15
+  },
+
+  "thresholds": {
+    "_comment": "Operational cutoffs used by the Risk Engine, Alert Engine, and Root Cause Engine.",
+
+    "high_risk":   67,
+    "medium_risk": 34,
+
+    "location_hotspot": 40,
+    "appeal_rate":      20,
+    "high_priority":    40,
+
+    "backlog": 10,
+
+    "aging_days_max": 30,
+
+    "rapid_risk_increase_pct":      15,
+    "rapid_complaint_growth_pct":   30,
+    "emerging_hotspot_pct":         25,
+    "keyword_spike_multiplier":     2.0,
+    "aging_cluster_days":           21,
+    "declining_quality_threshold":  50
+  },
+
+  "confidence": {
+    "_comment": "Weights for the Root Cause Confidence Score (must sum to 1.0).",
+    "location_dominance":   0.30,
+    "keyword_consistency":  0.20,
+    "complaint_volume":     0.15,
+    "temporal_dominance":   0.15,
+    "appeal_consistency":   0.10,
+    "priority_clustering":  0.10
+  },
+
+  "confidence_levels": {
+    "high":   75,
+    "medium": 50,
+    "low":    0
+  },
+
+  "resolution_quality": {
+    "_comment": "Weights for the Resolution Quality Index (must sum to 1.0).",
+    "appeal_rate_weight":      0.40,
+    "resolution_time_weight":  0.35,
+    "aging_weight":            0.25,
+    "sla_hours_benchmark":     48
+  },
+
+  "decision_priority": {
+    "_comment": "Weights for the Decision Priority Score (must sum to 1.0).",
+    "risk_score_weight":       0.35,
+    "confidence_weight":       0.20,
+    "complaint_volume_weight": 0.20,
+    "high_priority_weight":    0.15,
+    "resolution_quality_weight": 0.10,
+    "levels": {
+      "critical":  80,
+      "high":      60,
+      "medium":    40,
+      "low":       0
+    }
+  },
+
+  "trend": {
+    "increasing_threshold_pct": 10,
+    "decreasing_threshold_pct": -10
+  },
+
+  "analytics_version": "2.0"
+}
