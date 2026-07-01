@@ -42,7 +42,6 @@ const navItems: NavItem[] = [
   { label: 'Dashboard',       icon: ChartBar,        path: '/manager/analytics',       roles: ['manager']     },
   { label: 'Analytics',       icon: Map,             path: '/manager/heatmap',         roles: ['manager']     },
   { label: 'Recommendations', icon: Lightbulb,       path: '/manager/recommendations', roles: ['manager']     },
-  { label: 'Reports',         icon: FileText,        path: '/manager/reports',         roles: ['manager']     },
   { label: 'Top Issues',      icon: ListTodo,        path: '/manager/top-issues',      roles: ['manager']     },
   // Admin
   { label: 'Categories',      icon: ListTodo,        path: '/admin/categories',        roles: ['admin']       },

@@ -351,6 +351,7 @@ export default function AnalyticsPage() {
 
   const kpis = dashboard
     ? [
+<<<<<<< HEAD
         {
           label: "Total Complaints",
           value: dashboard.totalComplaints.toLocaleString(),
@@ -375,6 +376,12 @@ export default function AnalyticsPage() {
           icon: Users,
           trend: "neutral" as const,
         },
+=======
+        { label: 'Total Complaints', value: dashboard.totalComplaints.toLocaleString(), icon: FileText,     trend: 'neutral' as const },
+        { label: 'Resolution Rate',  value: dashboard.resolutionRate,                   icon: CheckCircle,   trend: 'up'      as const },
+        { label: 'Late Response Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
+        { label: 'Appeal Rate',      value: dashboard.appealRate,                       icon: Users,         trend: 'neutral' as const },
+>>>>>>> 422a7a671d4d1d742c7cf4a0bfe61e20f853cd62
       ]
     : [];
 
@@ -732,6 +739,7 @@ export default function AnalyticsPage() {
                         : "Avg Hours",
                   ]}
                 />
+<<<<<<< HEAD
                 <Legend
                   formatter={(val) =>
                     val === "total"
@@ -759,6 +767,12 @@ export default function AnalyticsPage() {
                   radius={[4, 4, 0, 0]}
                   barSize={18}
                 />
+=======
+                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours Resolution time'} />
+                <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
+                <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
+                <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
+>>>>>>> 422a7a671d4d1d742c7cf4a0bfe61e20f853cd62
               </BarChart>
             </ResponsiveContainer>
           )}

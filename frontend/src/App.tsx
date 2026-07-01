@@ -22,7 +22,6 @@ import OfficerAppeals from "./pages/officer/OfficerAppeals";
 import ManagerOverview from "./pages/manager/ManagerOverview";
 import ManagerHeatmap from "./pages/manager/ManagerHeatmap";
 import ManagerRecommendations from "./pages/manager/ManagerRecommendations";
-import ManagerReports from "./pages/manager/ManagerReports";
 
 // Admin Pages
 import AdminCategories from "./pages/admin/AdminCategories";
@@ -46,6 +45,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ChangePasswordPage from "./pages/auth/ChangePasswordPage";
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -68,6 +68,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
 
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />
@@ -95,7 +96,6 @@ function App() {
             path="/manager/recommendations"
             element={<ManagerRecommendations />}
           />
-          <Route path="/manager/reports" element={<ManagerReports />} />
           <Route path="/manager/top-issues" element={<TopIssuesPage />} />
           <Route path="/manager/analytics" element={<AnalyticsPage />} />
 
