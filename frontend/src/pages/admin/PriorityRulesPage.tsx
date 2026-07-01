@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
-import { getPriorityRules, savePriorityRule, getApiErrorMessage, type PriorityRule } from "@/api/adminApi";
+import { getPriorityRules, savePriorityRule, getCategories, getApiErrorMessage, type PriorityRule, type AdminCategory } from "@/api/adminApi";
 import {
   PageHeader,
   Card,
@@ -21,9 +21,10 @@ import {
   EmptyState,
   LoadingState,
   Banner,
+  Select,
 } from "./adminUi";
 
-const emptyForm = { priority_level: 1, description: "", examples: [] as string[] };
+const emptyForm = { priority_level: 1, description: "", examples: [] as string[], category_id: 0 };
 
 export default function PriorityRulesPage() {
   const [rules, setRules] = useState<PriorityRule[]>([]);
@@ -31,6 +32,7 @@ export default function PriorityRulesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -40,8 +42,10 @@ export default function PriorityRulesPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getPriorityRules();
-      setRules(data.sort((a, b) => a.priority_level - b.priority_level));
+      const rulesData = await getPriorityRules();
+      setRules(rulesData.sort((a, b) => a.priority_level - b.priority_level));
+      const catsData = await getCategories();
+      setCategories(catsData);
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to load priority rules."));
     } finally {
@@ -55,13 +59,23 @@ export default function PriorityRulesPage() {
 
   function openCreate() {
     setEditingLevel(null);
-    setForm(emptyForm);
+    setForm({
+      priority_level: 1,
+      description: "",
+      examples: [] as string[],
+      category_id: categories[0]?.id || 0,
+    });
     setFormOpen(true);
   }
 
   function openEdit(rule: PriorityRule) {
     setEditingLevel(rule.priority_level);
-    setForm({ priority_level: rule.priority_level, description: rule.description, examples: rule.examples ?? [] });
+    setForm({
+      priority_level: rule.priority_level,
+      description: rule.description,
+      examples: rule.examples ?? [],
+      category_id: rule.category_id || categories[0]?.id || 0,
+    });
     setFormOpen(true);
   }
 
@@ -108,7 +122,12 @@ export default function PriorityRulesPage() {
           {rules.map((rule) => (
             <Card key={rule.priority_level} className="p-4">
               <div className="flex items-start justify-between mb-2">
-                <Badge tone="accent">Priority {rule.priority_level}</Badge>
+                <div className="flex flex-col gap-1">
+                  <Badge tone="accent">Priority {rule.priority_level}</Badge>
+                  <span className="text-xs text-muted-foreground font-medium mt-1">
+                    Category: {categories.find(c => c.id === rule.category_id)?.name || `ID: ${rule.category_id}`}
+                  </span>
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(rule)}>
                   <Pencil className="size-3.5" />
                 </Button>
@@ -135,14 +154,27 @@ export default function PriorityRulesPage() {
             <Button variant="ghost" onClick={() => setFormOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave} loading={saving} disabled={!form.description}>
+            <Button onClick={handleSave} loading={saving} disabled={!form.description || !form.category_id}>
               Save rule
             </Button>
           </>
         }
       >
         <div className="space-y-3">
-          <Field label="Priority level" required hint="Saving an existing level overwrites that rule.">
+          <Field label="Category" required>
+            <Select
+              value={form.category_id}
+              onChange={(e) => setForm({ ...form, category_id: Number(e.target.value) || 0 })}
+            >
+              <option value="">Select a category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Priority level" required hint="Saving an existing level for the same category overwrites that rule.">
             <TextInput
               type="number"
               min={1}

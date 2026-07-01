@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, MessageSquare, ListTodo, BarChart3,
   Users, ShieldAlert, History, FileText, Activity, LogOut,
-  Map, Lightbulb, FileSearch, Lock, User, ChartBar, Shield, KeyRound,
+  Map, Lightbulb, FileSearch, Lock, User, ChartBar, Shield, KeyRound, FolderInput
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { WorkflowRole } from '../../types/workflow';
@@ -50,6 +50,8 @@ const navItems: NavItem[] = [
   { label: 'Priority Rules',  icon: Lock,            path: '/admin/priority-rules',    roles: ['admin']       },
   { label: 'Audit Logs',      icon: FileSearch,      path: '/admin/audit-logs',        roles: ['admin']       },
   { label: 'Insights',        icon: BarChart3,       path: '/admin/insights',          roles: ['admin']       },
+  { label: 'Uncategorized',   icon: FolderInput,     path: '/admin/uncategorized',     roles: ['admin']       },
+  { label: 'Offensive Logs',  icon: ShieldAlert,     path: '/admin/offensive-messages',roles: ['admin']       },
   // Super Admin
   { label: 'Requests',        icon: Shield,          path: '/superadmin/requests',     roles: ['super_admin'] },
   { label: 'All Admins',      icon: Users,           path: '/superadmin/admins',       roles: ['super_admin'] },

@@ -28,6 +28,8 @@ import PriorityRulesPage from "./pages/admin/PriorityRulesPage";
 import RegulationsPage from "./pages/admin/RegulationsPage";
 import UsersPage from "./pages/admin/UsersPage";
 import UsersImportPage from "./pages/admin/UsersImportPage";
+import UncategorizedComplaintsPage from "./pages/admin/UncategorizedComplaintsPage";
+import OffensiveMessagesPage from "./pages/admin/OffensiveMessagesPage";
 import TopIssuesPage from "./pages/manager/ManagerTopIssues";
 import RequestsPage from "./pages/super admin/RequestsPage";
 import RequestDetailPage from "./pages/super admin/RequestDetailPage";
@@ -105,6 +107,8 @@ function App() {
               <Route path="/admin/priority-rules" element={<PriorityRulesPage />} />
               <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
               <Route path="/admin/insights" element={<InsightsPage />} />
+              <Route path="/admin/uncategorized" element={<UncategorizedComplaintsPage />} />
+              <Route path="/admin/offensive-messages" element={<OffensiveMessagesPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["super_admin"]} />}>

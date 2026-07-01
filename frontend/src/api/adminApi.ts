@@ -141,6 +141,7 @@ export interface PriorityRule {
   priority_level: number;
   description: string;
   examples: string[];
+  category_id: number;
   updatedAt?: string;
 }
 
@@ -304,11 +305,13 @@ export async function savePriorityRule(payload: {
   priority_level: number;
   description: string;
   examples: string[];
+  category_id: number;
 }): Promise<{ success: boolean }> {
   const res = await apiClient.post(`${ADMIN_BASE}/priority-rules`, {
     "priority level": payload.priority_level,
     description: payload.description,
     examples: payload.examples,
+    category_id: payload.category_id,
   });
   return res.data;
 }
@@ -322,4 +325,62 @@ export async function getAuditLogs(filters: AuditLogFilters = {}): Promise<Audit
     params: filters,
   });
   return res.data.logs;
+}
+
+// =========================================================================
+// Regulations Upload (PDF)
+// =========================================================================
+
+export async function uploadRegulationPdf(file: File): Promise<{ success: boolean; parsed_chunks_count?: number }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await apiClient.post(`${ADMIN_BASE}/regulations/upload-pdf`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+// =========================================================================
+// Offensive Messages
+// =========================================================================
+
+export interface OffensiveMessage {
+  id: number;
+  user_id: number;
+  user_name: string;
+  email: string;
+  session_id: number;
+  message: string;
+  offense_count: number;
+  createdAt: string;
+}
+
+export async function getOffensiveMessages(): Promise<OffensiveMessage[]> {
+  const res = await apiClient.get<{ messages: OffensiveMessage[] }>(`${ADMIN_BASE}/offensive-messages`);
+  return res.data.messages;
+}
+
+// =========================================================================
+// Uncategorized Complaints
+// =========================================================================
+
+export interface UncategorizedComplaint {
+  id: number;
+  problem: string;
+  ai_summary: string;
+  priority: number;
+  status: string;
+  createdAt: string;
+  student_name: string;
+  student_email: string;
+}
+
+export async function getUncategorizedComplaints(): Promise<UncategorizedComplaint[]> {
+  const res = await apiClient.get<{ complaints: UncategorizedComplaint[] }>(`${ADMIN_BASE}/uncategorized-complaints`);
+  return res.data.complaints;
+}
+
+export async function reassignComplaint(id: number, category_id: number): Promise<{ success: boolean; new_category_name: string }> {
+  const res = await apiClient.patch(`${ADMIN_BASE}/complaints/${id}/reassign`, { category_id });
+  return res.data;
 }

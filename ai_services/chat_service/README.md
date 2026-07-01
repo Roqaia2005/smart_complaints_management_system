@@ -303,3 +303,6 @@ Row should exist.
 ### 18. Invalid session
 `POST /chat/message` with `session_id: 99999` -> expect `404`.
 
+py -3.11 -m venv venv
+venv\Scripts\activate
+uvicorn main:app

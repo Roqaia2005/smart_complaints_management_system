@@ -1,4 +1,5 @@
 import { apiClient } from './adminApi';
+import backendApi from './backendApi';
 
 // ── Student / Complaints ──────────────────────────────────────────────────
 export const studentApi = {
@@ -212,7 +213,7 @@ export const adminApi = {
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const authApi = {
   login: (data: { email: string; password: string }) =>
-    apiClient.post('/auth/login', data),
+    backendApi.post('/auth/login', data),
 
   registerAdmin: (data: {
     full_name: string;
@@ -222,18 +223,18 @@ export const authApi = {
     faculty_name: string;
     email_domain: string;
     supporting_document: string;
-  }) => apiClient.post('/auth/admin/register', data),
+  }) => backendApi.post('/auth/admin/register', data),
 
   forgotPassword: (data: { email: string }) =>
-    apiClient.post('/auth/forgot-password', data),
+    backendApi.post('/auth/forgot-password', data),
 
   resetPassword: (data: { token: string; password: string }) =>
-    apiClient.post('/auth/reset-password', data),
+    backendApi.post('/auth/reset-password', data),
    changePassword: (data: {
     current_password: string;
     new_password: string;
   }) =>
-    apiClient.patch('/auth/change-password', data),
+    backendApi.patch('/auth/change-password', data),
 };
 
 // ── Super Admin ───────────────────────────────────────────────────────────
