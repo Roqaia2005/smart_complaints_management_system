@@ -74,8 +74,20 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <AuthCard>
-      <div className="flex flex-col gap-1">
+
+       <div className="flex items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-[420px] flex flex-col gap-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-base shrink-0">
+            🎓
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground leading-none tracking-tight">UniResolve</p>
+            <p className="text-[0.68rem] text-muted-foreground uppercase tracking-widest mt-0.5">Complaint Management</p>
+          </div>
+        </div>
+         <div className="flex flex-col gap-1">
         <p className="text-[0.72rem] font-medium uppercase tracking-widest text-primary">
           Account security
         </p>
@@ -190,6 +202,8 @@ export default function ChangePasswordPage() {
           </PrimaryButton>
         </div>
       )}
-    </AuthCard>
+      </div>
+    </div>
+     
   );
 }

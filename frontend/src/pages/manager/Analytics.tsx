@@ -351,37 +351,11 @@ export default function AnalyticsPage() {
 
   const kpis = dashboard
     ? [
-<<<<<<< HEAD
-        {
-          label: "Total Complaints",
-          value: dashboard.totalComplaints.toLocaleString(),
-          icon: FileText,
-          trend: "neutral" as const,
-        },
-        {
-          label: "Resolution Rate",
-          value: dashboard.resolutionRate,
-          icon: CheckCircle,
-          trend: "up" as const,
-        },
-        {
-          label: "SLA Breach Rate",
-          value: dashboard.slaBreachRate,
-          icon: AlertTriangle,
-          trend: "down" as const,
-        },
-        {
-          label: "Appeal Rate",
-          value: dashboard.appealRate,
-          icon: Users,
-          trend: "neutral" as const,
-        },
-=======
+      
         { label: 'Total Complaints', value: dashboard.totalComplaints.toLocaleString(), icon: FileText,     trend: 'neutral' as const },
         { label: 'Resolution Rate',  value: dashboard.resolutionRate,                   icon: CheckCircle,   trend: 'up'      as const },
         { label: 'Late Response Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
         { label: 'Appeal Rate',      value: dashboard.appealRate,                       icon: Users,         trend: 'neutral' as const },
->>>>>>> 422a7a671d4d1d742c7cf4a0bfe61e20f853cd62
       ]
     : [];
 
@@ -436,35 +410,9 @@ export default function AnalyticsPage() {
       {loadingDashboard ? (
         <LoadingOverlay />
       ) : dashboard ? (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="border-primary/10 bg-gradient-to-br from-primary/10 via-background to-accent/10 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-                    Operational pulse
-                  </p>
-                  <h3 className="mt-2 text-2xl font-semibold">
-                    {dashboard.totalComplaints.toLocaleString()} active
-                    complaints
-                  </h3>
-                  <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                    The current outlook indicates healthy resolution momentum
-                    with a moderate rise in escalations that deserves attention.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-primary/10 bg-background/70 px-4 py-3 text-sm">
-                  <div className="font-semibold text-primary">
-                    Recommended focus
-                  </div>
-                  <div className="text-muted-foreground">
-                    Priority queue review and appeals response.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="">
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
             {kpis.map((kpi, i) => (
               <Card key={i} className="border-border/70 bg-card/80 shadow-sm">
                 <CardContent className="p-6">
@@ -739,40 +687,11 @@ export default function AnalyticsPage() {
                         : "Avg Hours",
                   ]}
                 />
-<<<<<<< HEAD
-                <Legend
-                  formatter={(val) =>
-                    val === "total"
-                      ? "Total"
-                      : val === "resolved"
-                        ? "Resolved"
-                        : "Avg Hours"
-                  }
-                />
-                <Bar
-                  dataKey="total"
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                  barSize={18}
-                />
-                <Bar
-                  dataKey="resolved"
-                  fill="#10b981"
-                  radius={[4, 4, 0, 0]}
-                  barSize={18}
-                />
-                <Bar
-                  dataKey="avg_hours"
-                  fill="#f59e0b"
-                  radius={[4, 4, 0, 0]}
-                  barSize={18}
-                />
-=======
+                
                 <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours Resolution time'} />
                 <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
                 <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
                 <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
->>>>>>> 422a7a671d4d1d742c7cf4a0bfe61e20f853cd62
               </BarChart>
             </ResponsiveContainer>
           )}

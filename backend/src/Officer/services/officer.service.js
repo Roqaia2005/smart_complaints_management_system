@@ -309,3 +309,24 @@ exports.getAllOfficersService = async (currentOfficerId, facultyId) => {
 
     return { officers };
 };
+
+exports.getAssignedCategoriesService = async (officerId) => {
+  // Step 1: get the category IDs assigned to this officer
+  const assigned = await CategoryOfficer.findAll({
+    where: { officer_id: officerId },
+    attributes: ['category_id']
+  });
+
+  if (assigned.length === 0) return { categories: [] };
+
+  const categoryIds = assigned.map(a => a.category_id);
+
+  // Step 2: fetch category names directly from Category model
+  const categories = await Category.findAll({
+    where: { id: categoryIds },
+    attributes: ['id', 'name'],
+    order: [['name', 'ASC']]
+  });
+
+  return { categories };
+};

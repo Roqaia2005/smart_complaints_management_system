@@ -1,12 +1,6 @@
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
-// import AuthPages from "@/pages/auth/AuthPages";
 
 // Student Pages
 import StudentChatbot from "./pages/student/Chatbot";
@@ -26,9 +20,6 @@ import ManagerRecommendations from "./pages/manager/ManagerRecommendations";
 // Admin Pages
 import AdminCategories from "./pages/admin/AdminCategories";
 
-// Shared / Dashboard
-import DashboardPage from "./pages/DashboardPage";
-
 import { useThemeStore } from "./store/themeStore";
 import AnalyticsPage from "./pages/manager/Analytics";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
@@ -46,6 +37,9 @@ import RegisterPage from "./pages/auth/RegisterPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ChangePasswordPage from "./pages/auth/ChangePasswordPage";
+import DashboardPage from "./pages/DashboardPage";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -68,56 +62,63 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/change-password" element={<ChangePasswordPage />} />
 
         <Route element={<MainLayout />}>
-          <Route path="/" element={<DashboardPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
 
-          {/* Student Routes */}
-          <Route path="/student/chat" element={<StudentChatbot />} />
-          <Route path="/student/complaints" element={<StudentComplaints />} />
-          <Route
-            path="/student/complaints/:id"
-            element={<ComplaintDetails />}
-          />
+            <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+              <Route path="/student/chat" element={<StudentChatbot />} />
+              <Route path="/student/complaints" element={<StudentComplaints />} />
+              <Route
+                path="/student/complaints/:id"
+                element={<ComplaintDetails />}
+              />
+            </Route>
 
-          {/* Officer Routes */}
-          <Route path="/officer/dashboards" element={<OfficerDashboard />} />
-          <Route
-            path="/officer/complaints/:id"
-            element={<OfficerComplaintDetails />}
-          />
-          <Route path="/officer/appeals" element={<OfficerAppeals />} />
+            <Route element={<ProtectedRoute allowedRoles={["officer"]} />}>
+              <Route path="/officer/dashboards" element={<OfficerDashboard />} />
+              <Route
+                path="/officer/complaints/:id"
+                element={<OfficerComplaintDetails />}
+              />
+              <Route path="/officer/appeals" element={<OfficerAppeals />} />
+            </Route>
 
-          {/* Manager Routes */}
-          <Route path="/manager/overview" element={<ManagerOverview />} />
-          <Route path="/manager/heatmap" element={<ManagerHeatmap />} />
-          <Route
-            path="/manager/recommendations"
-            element={<ManagerRecommendations />}
-          />
-          <Route path="/manager/top-issues" element={<TopIssuesPage />} />
-          <Route path="/manager/analytics" element={<AnalyticsPage />} />
+            <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
+              <Route path="/manager/overview" element={<ManagerOverview />} />
+              <Route path="/manager/heatmap" element={<ManagerHeatmap />} />
+              <Route
+                path="/manager/recommendations"
+                element={<ManagerRecommendations />}
+              />
+              <Route path="/manager/top-issues" element={<TopIssuesPage />} />
+              <Route path="/manager/analytics" element={<AnalyticsPage />} />
+            </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/users/import" element={<UsersImportPage />} />
-          <Route path="/admin/regulations" element={<RegulationsPage />} />
-          <Route path="/admin/priority-rules" element={<PriorityRulesPage />} />
-          <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
-          <Route path="/admin/insights" element={<InsightsPage />} />
+            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+              <Route path="/admin/categories" element={<AdminCategories />} />
+              <Route path="/admin/users" element={<UsersPage />} />
+              <Route path="/admin/users/import" element={<UsersImportPage />} />
+              <Route path="/admin/regulations" element={<RegulationsPage />} />
+              <Route path="/admin/priority-rules" element={<PriorityRulesPage />} />
+              <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+              <Route path="/admin/insights" element={<InsightsPage />} />
+            </Route>
 
-          {/*Super Admin Routes */}
-          <Route path="/superadmin/requests" element={<RequestsPage />} />
-          <Route
-            path="/superadmin/requests/:id"
-            element={<RequestDetailPage />}
-          />
-          <Route path="/superadmin/admins" element={<AdminsPage />} />
+            <Route element={<ProtectedRoute allowedRoles={["super_admin"]} />}>
+              <Route path="/superadmin/requests" element={<RequestsPage />} />
+              <Route
+                path="/superadmin/requests/:id"
+                element={<RequestDetailPage />}
+              />
+              <Route path="/superadmin/admins" element={<AdminsPage />} />
+            </Route>
+          </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );

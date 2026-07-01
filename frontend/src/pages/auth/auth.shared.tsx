@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-// ── Role → redirect path (used by LoginPage) ──────────────────────────────
+// ── Role → redirect path (used by LoginPage and route guards) ───────────
 export const ROLE_HOME: Record<string, string> = {
   student:     '/student/chat',
   officer:     '/officer/dashboards',
@@ -8,6 +8,23 @@ export const ROLE_HOME: Record<string, string> = {
   admin:       '/admin/categories',
   super_admin: '/superadmin/requests',
 };
+
+export function normalizeRole(role?: string | null) {
+  if (!role) return null;
+
+  const normalized = role.toLowerCase();
+  if (normalized === 'superadmin') return 'super_admin';
+  if (normalized === 'admin') return 'admin';
+  if (normalized === 'manager') return 'manager';
+  if (normalized === 'officer') return 'officer';
+  if (normalized === 'student') return 'student';
+
+  return normalized;
+}
+
+export function getRoleHomeRoute(role?: string | null) {
+  return ROLE_HOME[normalizeRole(role) ?? 'student'] ?? '/';
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 export function EyeIcon({ open }: { open: boolean }) {
@@ -193,7 +210,7 @@ export function AuthCard({ children }: { children: React.ReactNode }) {
             🎓
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground leading-none tracking-tight">UniDesk</p>
+            <p className="text-sm font-semibold text-foreground leading-none tracking-tight">UniResolve</p>
             <p className="text-[0.68rem] text-muted-foreground uppercase tracking-widest mt-0.5">Complaint Management</p>
           </div>
         </div>
