@@ -182,13 +182,19 @@ exports.getAppealedComplaintsService = async (officerId, categoryId = null) => {
 };
 
 // =========================================================
-// 5. Mark Appeal as Reviewed (تم تعديل مكان الـ where الفلترة المفقودة)
+// 5. Mark Appeal as Reviewed 
 // =========================================================
-exports.markAppealReviewedService = async (appealId, officerId) => {
+exports.markAppealReviewedService = async (appealId, responseText, officerId) => {
+    // التأكد أن نص الرد تم إرساله وليس فارغاً
+    if (!responseText || !responseText.trim()) {
+        throw new Error('response_text is required to review this appeal.');
+    }
+
     const categoryIds = await getOfficerCategoryIds(officerId);
 
+    // البحث عن الالتماس مع التحقق من الصلاحية (Isolation)
     const appeal = await Appeal.findOne({
-        where: { id: appealId }, // ✅ تم النقل هنا لتصليح الـ Syntax وقفل الثغرة
+        where: { id: appealId }, 
         include: [{
             model: Complaint,
             where: { category_id: { [Op.in]: categoryIds } },
@@ -200,12 +206,28 @@ exports.markAppealReviewedService = async (appealId, officerId) => {
         throw new Error('Appeal not found or you do not have permission to review it.');
     }
 
+    // تحديث بيانات الالتماس وحفظ نص الرد في العمود الصحيح
     appeal.status = 'reviewed'; 
+    appeal.response_text = responseText.trim(); // ✅ الاسم المطابق للسكيمة بالظبط
+    appeal.responded_at = new Date();
+    appeal.responded_by = officerId;
     await appeal.save();
+
+    //  نظام الإشعارات التلقائي
+    try {
+        const { Notification } = db; 
+        await Notification.create({
+            user_id: appeal.Complaint.user_id, 
+            title: 'Appeal Reviewed by Administration',
+            message: `Your appeal for complaint number #${appeal.complaint_id} has been reviewed. Remarks: ${responseText.trim()}`
+        });
+        console.log(`Notification triggered successfully for user: ${appeal.Complaint.user_id}`);
+    } catch (notifyError) {
+        console.error('Notification Error but appeal saved:', notifyError.message);
+    }
 
     return { success: true };
 };
-
 // =========================================================
 // 6. Get Officer Dashboard Stats (تحسين جبار في الأداء باستخدام الـ Aggregation)
 // =========================================================

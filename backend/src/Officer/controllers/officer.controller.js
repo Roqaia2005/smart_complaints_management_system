@@ -57,12 +57,7 @@ exports.getComplaintDetailsController = async (req, res) => {
 // =========================================================
 // 3. Update Complaint Status
 // =========================================================
-// =========================================================
-// 3. Update Complaint Status (المعدلة لتبعيث الإشعارات)
-// =========================================================
-// =========================================================
-// 3. Update Complaint Status (مع نظام الإشعارات المدمج)
-// =========================================================
+
 exports.updateComplaintStatusController = async (req, res) => {
     try {
         const officerId = req.user.id; 
@@ -140,9 +135,10 @@ exports.getAppealedComplaintsController = async (req, res) => {
 exports.markAppealReviewedController = async (req, res) => {
     try {
         const officerId = req.user.id; 
-        const { id } = req.params;
+        const { id } = req.params; 
+        const { response_text } = req.body; // تغيير المسمى هنا أيضاً ليطابق الفرونت
 
-        const data = await markAppealReviewedService(id, officerId);
+        const data = await markAppealReviewedService(id, response_text, officerId);
         return res.status(200).json(data);
 
     } catch (error) {
@@ -161,7 +157,6 @@ exports.getDashboard = async (req, res) => {
         const officerId = req.user.id; 
         const { categoryId } = req.query;
 
-        // ✅ تصحيح: استدعاء الدالة المفكوكة مباشرة بدون اسم كائن غير موجود
         const stats = await getOfficerDashboardStats(officerId, categoryId);
 
         if (stats.error) {
