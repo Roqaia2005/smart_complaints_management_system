@@ -369,3 +369,30 @@ exports.getOffensiveMessages = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 };
+
+
+
+exports.getUncategorizedComplaintsController = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    if (!facultyId) return res.status(400).json({ success: false, error: 'faculty_id is required' });
+    const complaints = await adminService.getUncategorizedComplaints(facultyId);
+    return res.status(200).json({ complaints });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+};
+
+exports.reassignComplaintController = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    if (!facultyId) return res.status(400).json({ success: false, error: 'faculty_id is required' });
+    const { id } = req.params;
+    const { category_id } = req.body;
+    if (!category_id) return res.status(400).json({ success: false, error: 'category_id is required' });
+    const result = await adminService.reassignComplaint(id, category_id, facultyId);
+    return res.status(200).json(result);
+  } catch (e) {
+    return res.status(400).json({ success: false, error: e.message });
+  }
+};
