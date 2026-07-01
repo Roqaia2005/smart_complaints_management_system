@@ -1,13 +1,27 @@
 const authService = require("../services/auth.service");
 
-// ADMIN REGISTRATION REQUEST (submitted by a prospective faculty admin)
+// ADMIN REGISTRATION REQUEST (multer puts the uploaded file on req.file)
 
 const submitAdminRequest = async (req, res) => {
   try {
-    const result = await authService.submitAdminRequest(req.body);
-    res.status(201).json(result);
+    const requestData = {
+      ...req.body,
+      supporting_document: req.file ? req.file.path : null,
+    };
+
+    if (!requestData.supporting_document) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Supporting document file is required.",
+        });
+    }
+
+    const result = await authService.submitAdminRequest(requestData);
+    return res.status(201).json(result);
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -93,9 +107,9 @@ const forgotPassword = async (req, res) => {
     if (!email)
       return res
         .status(400)
-        .json({ success: false, message: "email is required." });
+        .json({ success: false, message: "Email is required." });
     const result = await authService.forgotPassword(email);
-    return res.json(result);
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
@@ -109,14 +123,39 @@ const resetPassword = async (req, res) => {
         .status(400)
         .json({
           success: false,
-          message: "email, otp_code, and new_password are required.",
+          message: "Email, otp_code, and new_password are required.",
         });
     const result = await authService.resetPassword(
       email,
       otp_code,
       new_password,
     );
-    return res.json(result);
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// CHANGE PASSWORD (logged-in user, protected route)
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required.",
+      });
+    }
+
+    const result = await authService.changePassword(
+      userId,
+      current_password,
+      new_password,
+    );
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
@@ -130,9 +169,9 @@ const login = async (req, res) => {
     if (!email || !password)
       return res
         .status(400)
-        .json({ success: false, message: "email and password are required." });
+        .json({ success: false, message: "Email and password are required." });
     const result = await authService.login(email, password);
-    return res.json(result);
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(error.message.includes("deactivated") ? 403 : 401).json({
       success: false,
@@ -150,5 +189,6 @@ module.exports = {
   studentVerifyAndRegisterController,
   forgotPassword,
   resetPassword,
+  changePassword,
   login,
 };

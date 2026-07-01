@@ -33,7 +33,6 @@ def _empty(reply: str) -> dict:
         "category_name": None,
         "problem_summary": None,
         "details": {},
-        "offensive_detected": False,
     }
 
 
@@ -41,6 +40,7 @@ def chat_with_groq(system_prompt: str, history: list[dict], user_message: str, l
     messages: list[Any] = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
+
     try:
         response = client.chat.completions.create(
             model=MODEL,
@@ -62,12 +62,15 @@ def chat_with_groq(system_prompt: str, history: list[dict], user_message: str, l
             raw = raw[4:]
         raw = raw.strip()
 
+    if not raw.startswith("{"):
+        brace_pos = raw.find("{")
+        if brace_pos != -1:
+            raw = raw[brace_pos:]
+
     try:
         parsed = json.loads(raw)
         if not isinstance(parsed.get("details"), dict):
             parsed["details"] = {}
-        if "offensive_detected" not in parsed:
-            parsed["offensive_detected"] = False
         return parsed
     except json.JSONDecodeError:
         logger.warning("Groq returned non-JSON")
@@ -81,6 +84,7 @@ Category: {category_name}
 Summary: {problem_summary}
 Details: {json.dumps(details, ensure_ascii=False)}
 Reply with ONLY a single digit 1-5."""
+
     try:
         r = client.chat.completions.create(
             model=MODEL,
@@ -115,10 +119,11 @@ def generate_summary(
     prompt = (
         f"Write a professional complaint summary in {'Arabic' if language == 'ar' else 'English'} "
         f"for a university officer. 2-3 sentences max. "
-        f"Include student department and academic year if provided as they help the officer understand urgency. "
+        f"Include student department and academic year if provided. "
         f"Do not include the student name or ID number.\n\n"
         + "\n".join(ctx)
     )
+
     try:
         r = client.chat.completions.create(
             model=MODEL,

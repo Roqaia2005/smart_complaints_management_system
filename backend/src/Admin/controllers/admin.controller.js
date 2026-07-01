@@ -1,160 +1,96 @@
 const fs = require("fs");
 const adminService = require("../services/admin.service");
+const { User } = require("../../../models");
 
 function getFacultyId(req) {
   return req.user && req.user.faculty_id;
 }
+
 function cleanupFile(filePath) {
-  if (filePath) fs.unlink(filePath, () => {});
+  if (filePath) {
+    fs.unlink(filePath, () => {});
+  }
 }
 
-// STUDENTS
+// =========================================================
+// UNIFIED USER PROVISIONING (Manual Creation)
+// =========================================================
 
-exports.createStudentController = async (req, res) => {
+exports.createUserController = async (req, res) => {
   try {
-    const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    return res
-      .status(201)
-      .json(await adminService.createStudentService(req.body, facultyId));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
+    const admin = await User.findByPk(req.user.id);
+    const facultyId = admin?.faculty_id;
+
+    if (!facultyId) {
+      return res.status(400).json({
+        success: false,
+        error: "Admin is not linked to any faculty.",
+      });
+    }
+
+    const result = await adminService.createUserService(req.body, facultyId);
+    return res.status(201).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
-exports.importStudentsPreviewController = async (req, res) => {
+// =========================================================
+// UNIFIED CSV BULK IMPORT (Preview + Confirm)
+// =========================================================
+
+exports.importUsersPreviewController = async (req, res) => {
   try {
     const facultyId = getFacultyId(req);
-    if (!facultyId)
+    const { targetRole } = req.body;
+
+    if (!facultyId) {
       return res
         .status(400)
         .json({ success: false, error: "faculty_id is required" });
-    if (!req.file)
+    }
+    if (!targetRole) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "targetRole is required to parse CSV layout correctly",
+        });
+    }
+    if (!req.file) {
       return res
         .status(400)
         .json({ success: false, error: "CSV file is required" });
-    const result = await adminService.importStudentsCsvService(
+    }
+
+    const result = await adminService.importUsersCsvService(
       req.file.path,
       facultyId,
+      targetRole,
     );
     cleanupFile(req.file.path);
+
     return res.status(200).json(result);
-  } catch (e) {
+  } catch (error) {
     cleanupFile(req.file?.path);
-    return res.status(400).json({ success: false, error: e.message });
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
-exports.confirmImportStudentsController = async (req, res) => {
+exports.confirmImportUsersController = async (req, res) => {
   try {
     const { import_id } = req.body;
-    if (!import_id)
+
+    if (!import_id) {
       return res
         .status(400)
         .json({ success: false, error: "import_id is required" });
-    return res
-      .status(200)
-      .json(await adminService.confirmImportStudentsService(import_id));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
+    }
 
-// STUDENT INFO UPDATE (department + academic_year)
-
-exports.importStudentInfoPreviewController = async (req, res) => {
-  try {
-    const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    if (!req.file)
-      return res
-        .status(400)
-        .json({ success: false, error: "CSV file is required" });
-    const result = await adminService.importStudentInfoCsvService(
-      req.file.path,
-      facultyId,
-    );
-    cleanupFile(req.file.path);
+    const result = await adminService.confirmImportUsersService(import_id);
     return res.status(200).json(result);
-  } catch (e) {
-    cleanupFile(req.file?.path);
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
-exports.confirmImportStudentInfoController = async (req, res) => {
-  try {
-    const { import_id } = req.body;
-    if (!import_id)
-      return res
-        .status(400)
-        .json({ success: false, error: "import_id is required" });
-    return res
-      .status(200)
-      .json(await adminService.confirmImportStudentInfoService(import_id));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
-// OFFICERS
-
-exports.createOfficerController = async (req, res) => {
-  try {
-    const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    return res
-      .status(201)
-      .json(await adminService.createOfficerService(req.body, facultyId));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
-exports.importOfficersPreviewController = async (req, res) => {
-  try {
-    const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    if (!req.file)
-      return res
-        .status(400)
-        .json({ success: false, error: "CSV file is required" });
-    const result = await adminService.importOfficersCsvService(
-      req.file.path,
-      facultyId,
-    );
-    cleanupFile(req.file.path);
-    return res.status(200).json(result);
-  } catch (e) {
-    cleanupFile(req.file?.path);
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
-exports.confirmImportOfficersController = async (req, res) => {
-  try {
-    const { import_id } = req.body;
-    if (!import_id)
-      return res
-        .status(400)
-        .json({ success: false, error: "import_id is required" });
-    return res
-      .status(200)
-      .json(await adminService.confirmImportOfficersService(import_id));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
@@ -162,151 +98,177 @@ exports.setOfficerManagerFlagController = async (req, res) => {
   try {
     const { id } = req.params;
     const { is_also_manager, manager_title } = req.body;
-    return res
-      .status(200)
-      .json(
-        await adminService.setOfficerManagerFlag(
-          id,
-          is_also_manager,
-          manager_title,
-        ),
-      );
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
-// MANAGERS
-
-exports.createManagerController = async (req, res) => {
-  try {
     const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    return res
-      .status(201)
-      .json(await adminService.createManagerService(req.body, facultyId));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
 
-exports.importManagersPreviewController = async (req, res) => {
-  try {
-    const facultyId = getFacultyId(req);
-    if (!facultyId)
-      return res
-        .status(400)
-        .json({ success: false, error: "faculty_id is required" });
-    if (!req.file)
-      return res
-        .status(400)
-        .json({ success: false, error: "CSV file is required" });
-    const result = await adminService.importManagersCsvService(
-      req.file.path,
+    const result = await adminService.setOfficerManagerFlag(
+      id,
+      is_also_manager,
+      manager_title,
       facultyId,
     );
-    cleanupFile(req.file.path);
     return res.status(200).json(result);
-  } catch (e) {
-    cleanupFile(req.file?.path);
-    return res.status(400).json({ success: false, error: e.message });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
-exports.confirmImportManagersController = async (req, res) => {
-  try {
-    const { import_id } = req.body;
-    if (!import_id)
-      return res
-        .status(400)
-        .json({ success: false, error: "import_id is required" });
-    return res
-      .status(200)
-      .json(await adminService.confirmImportManagersService(import_id));
-  } catch (e) {
-    return res.status(400).json({ success: false, error: e.message });
-  }
-};
-
+// =========================================================
 // CATEGORIES
+// =========================================================
 
-exports.getCategories = (req, res) => {
-  adminService
-    .getAllCategories()
-    .then((c) => res.status(200).json({ categories: c }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.getCategories = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const categories = await adminService.getAllCategories(facultyId);
+    return res.status(200).json({ categories });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-exports.addCategory = (req, res) => {
-  adminService
-    .createNewCategory(req.body)
-    .then((c) => res.status(201).json({ success: true, category_id: c.id }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.addCategory = async (req, res) => {
+  try {
+    const { name, description, sla_hours, keywords } = req.body;
+    const facultyId = getFacultyId(req);
+
+    if (!name || !sla_hours) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and SLA hours are required.",
+      });
+    }
+
+    const categoryData = {
+      name,
+      description,
+      sla_hours,
+      keywords,
+      faculty_id: facultyId,
+    };
+
+    const newCategory = await adminService.createNewCategory(categoryData);
+
+    return res.status(201).json({
+      success: true,
+      message: "Category created successfully without officer assignment.",
+      category: newCategory,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
 };
 
-exports.patchCategory = (req, res) => {
-  adminService
-    .updateCategory(req.params.id, req.body)
-    .then(() => res.status(200).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.patchCategory = async (req, res) => {
+  try {
+    await adminService.updateCategory(req.params.id, req.body);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-exports.deleteCategory = (req, res) => {
-  adminService
-    .softDeleteCategory(req.params.id)
-    .then(() => res.status(200).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.deleteCategory = async (req, res) => {
+  try {
+    await adminService.softDeleteCategory(req.params.id);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// USERS
+// =========================================================
+// USERS (general management)
+// =========================================================
 
-exports.getUsers = (req, res) => {
-  adminService
-    .getAllUsers()
-    .then((u) => res.status(200).json({ users: u }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.getUsers = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const users = await adminService.getAllUsers(facultyId);
+    return res.status(200).json({ users });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-exports.patchUser = (req, res) => {
-  adminService
-    .updateUser(req.params.id, req.body)
-    .then(() => res.status(200).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.patchUser = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const adminId = req.user?.id;
+
+    if (Number(req.params.id) === Number(adminId)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "You cannot activate/deactivate your own admin account from here.",
+      });
+    }
+
+    await adminService.updateUser(req.params.id, req.body, facultyId);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 };
 
-exports.deleteUser = (req, res) => {
-  adminService
-    .softDeleteUser(req.params.id)
-    .then(() => res.status(200).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.deleteUser = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const adminId = req.user?.id;
+
+    if (Number(req.params.id) === Number(adminId)) {
+      return res.status(400).json({
+        success: false,
+        error: "You cannot delete your own admin account.",
+      });
+    }
+
+    await adminService.softDeleteUser(req.params.id, facultyId);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 };
 
+// =========================================================
 // REGULATIONS
+// =========================================================
 
-exports.getRegulations = (req, res) => {
-  adminService
-    .getAllRegulations()
-    .then((r) => res.status(200).json({ regulations: r }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.getRegulations = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const regulations = await adminService.getAllRegulations(facultyId);
+    return res.status(200).json({ regulations });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-exports.addRegulation = (req, res) => {
-  adminService
-    .createNewRegulation(req.body)
-    .then(() => res.status(201).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.addRegulation = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    await adminService.createNewRegulation(req.body, facultyId);
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-exports.removeRegulation = (req, res) => {
-  adminService
-    .deleteRegulation(req.params.id)
-    .then(() => res.status(200).json({ success: true }))
-    .catch((e) => res.status(500).json({ success: false, error: e.message }));
+exports.removeRegulation = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    await adminService.deleteRegulation(req.params.id, facultyId);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 };
 
+// PDF regulation upload -> forwarded to the Python service, which parses
+// and indexes it for the chatbot's RAG search (faculty_id taken from the
+// authenticated admin's own token, never trusted from the request body).
 exports.uploadRegulationPdfController = async (req, res) => {
   const axios = require("axios");
   const FormData = require("form-data");
@@ -319,82 +281,91 @@ exports.uploadRegulationPdfController = async (req, res) => {
         .status(400)
         .json({ success: false, error: "faculty_id is required" });
     }
-    if (!req.file)
+    if (!req.file) {
       return res
         .status(400)
         .json({ success: false, error: "PDF file is required" });
+    }
+
     const form = new FormData();
     form.append("file", fs.createReadStream(req.file.path), {
       filename: req.file.originalname || "regulation.pdf",
       contentType: "application/pdf",
     });
     form.append("faculty_id", String(facultyId));
+
     const response = await axios.post(
       `${pythonService.baseUrl}/api/regulations/upload`,
       form,
       { headers: form.getHeaders(), timeout: 60000 },
     );
+
     cleanupFile(req.file.path);
     return res.status(200).json(response.data);
   } catch (error) {
     cleanupFile(req.file?.path);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: error.response?.data?.detail || error.message,
-      });
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data?.detail || error.message,
+    });
   }
 };
 
-// OFFENSIVE MESSAGES
-
-exports.getOffensiveMessages = async (req, res) => {
-  try {
-    return res
-      .status(200)
-      .json({ messages: await adminService.getOffensiveMessages() });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
-  }
-};
-
+// =========================================================
 // PRIORITY RULES
+// =========================================================
 
 exports.getRules = async (req, res) => {
   try {
-    return res
-      .status(200)
-      .json({ rules: await adminService.getPriorityRules() });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+    const facultyId = getFacultyId(req);
+    const rules = await adminService.getPriorityRules(facultyId);
+    return res.status(200).json({ rules });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
 
 exports.savePriorityRule = async (req, res) => {
   try {
-    await adminService.upsertPriorityRule(req.body);
+    const facultyId = getFacultyId(req);
+    await adminService.upsertPriorityRule(req.body, facultyId);
     return res.status(200).json({ success: true });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
   }
 };
 
+// =========================================================
 // AUDIT LOGS
+// =========================================================
 
 exports.getAuditLogs = async (req, res) => {
   try {
-    const logs = await adminService.getSystemAuditLogs(req.query);
-    return res.status(200).json({
-      logs: logs.map((log) => ({
-        user_name: log.User ? log.User.full_name : "System",
-        action: log.action,
-        entity_type: log.entity_type,
-        entity_id: log.entity_id,
-        created_at: log.createdAt,
-      })),
-    });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+    const facultyId = getFacultyId(req);
+    const logs = await adminService.getSystemAuditLogs(req.query, facultyId);
+    const formattedLogs = logs.map((log) => ({
+      user_name: log.User ? log.User.full_name : "System",
+      action: log.action,
+      entity_type: log.entity_type,
+      entity_id: log.entity_id,
+      created_at: log.createdAt,
+    }));
+    return res.status(200).json({ logs: formattedLogs });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// =========================================================
+// OFFENSIVE MESSAGES
+// =========================================================
+
+exports.getOffensiveMessages = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const messages = await adminService.getOffensiveMessages(facultyId);
+    return res.status(200).json({ messages });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 };

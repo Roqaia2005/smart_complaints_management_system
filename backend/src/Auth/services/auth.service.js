@@ -18,12 +18,10 @@ const {
 const { ROLES } = require("../constants/roles");
 
 // ==================== Constants ====================
-
 const OTP_COOLDOWN_SECONDS = 60;
 const MAX_OTP_ATTEMPTS = 5;
 
 // ==================== Email Transporter ====================
-
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: emailConfig.host,
@@ -47,24 +45,41 @@ const hashPassword = (password) => bcrypt.hash(password, 10);
 const generateOtpCode = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-const hashOtp = (otp) => bcrypt.hash(otp, 10);
+const hashOtp = (otp_code) => bcrypt.hash(otp_code, 8);
 
-const verifyOtpHash = (otp, hash) => bcrypt.compare(otp, hash);
+const verifyOtpHash = (otp_code, otp_hash) =>
+  bcrypt.compare(otp_code, otp_hash);
 
 const sendOtpEmail = async (email, otp_code, expirySeconds) => {
   const transporter = createTransporter();
+  const expiryMinutes = Math.ceil(expirySeconds / 60);
+
   await transporter.sendMail({
-    from: emailConfig.user,
+    from: `"Complaint System Support" <${emailConfig.user}>`,
     to: email,
     subject: "Your verification code",
-    text: `Your verification code is: ${otp_code}\nIt expires in ${Math.floor(expirySeconds / 60)} minutes.`,
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+        <h2>Verification Code</h2>
+        <p>Use the code below to proceed:</p>
+        <div style="font-size: 24px; font-weight: bold; padding: 10px; background: #f4f4f4; text-align: center; letter-spacing: 5px; color: #333;">
+          ${otp_code}
+        </div>
+        <p style="color: #666; font-size: 14px;">This code is valid for <strong>${expiryMinutes} minutes</strong>.</p>
+        <p style="color: #999; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `,
   });
 };
 
+// ==================== Auth Tokens & Validations ====================
+
 const generateAuthResponse = (user) => {
-  const token = jwt.sign({ id: user.id, role: user.role }, jwtConfig.secret, {
-    expiresIn: jwtConfig.expiresIn,
-  });
+  const token = jwt.sign(
+    { id: user.id, role: user.role, faculty_id: user.faculty_id ?? null },
+    jwtConfig.secret,
+    { expiresIn: jwtConfig.expiresIn },
+  );
 
   return {
     success: true,
@@ -108,7 +123,7 @@ const checkCooldown = async (whereClause) => {
 
 // =========================================================================
 // ADMIN REGISTRATION REQUEST -> approved by super admin -> then login
-// Column is "university" not "university_name" — matches the actual table.
+// supporting_document now comes from multer (req.file.path) in the controller.
 // =========================================================================
 
 const submitAdminRequest = async ({
@@ -134,8 +149,10 @@ const submitAdminRequest = async ({
     );
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   const existing = await AdminRegistrationRequest.findOne({
-    where: { email, status: "Pending" },
+    where: { email: normalizedEmail, status: "Pending" },
   });
 
   if (existing) {
@@ -158,7 +175,7 @@ const submitAdminRequest = async ({
 
   const request = await AdminRegistrationRequest.create({
     full_name,
-    email,
+    email: normalizedEmail,
     password_hash,
     university_name,
     faculty_name,
@@ -197,7 +214,6 @@ const approveAdminRequest = async (requestId) => {
     throw new Error("A user with this email already exists.");
   }
 
-  // Find or create the faculty this admin will manage
   let faculty = await Faculty.findOne({
     where: { name: request.faculty_name },
   });
@@ -431,10 +447,39 @@ const resetPassword = async (email, otp_code, new_password) => {
   await otpRecord.update({ is_used: true });
 
   const user = await User.findOne({ where: { email: normalizedEmail } });
+  if (!user) throw new Error("User no longer exists.");
+
   const password_hash = await hashPassword(new_password);
   await user.update({ password_hash });
 
   return { success: true, message: "Password reset successfully." };
+};
+
+// =========================================================================
+// CHANGE PASSWORD (logged-in user changes their own password)
+// =========================================================================
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  validatePassword(newPassword);
+
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isMatch) {
+    throw new Error("Your current password is incorrect.");
+  }
+
+  if (currentPassword === newPassword) {
+    throw new Error("New password cannot be the same as the current password.");
+  }
+
+  const password_hash = await hashPassword(newPassword);
+  await user.update({ password_hash });
+
+  return { success: true, message: "Password changed successfully." };
 };
 
 // =========================================================================
@@ -472,9 +517,10 @@ module.exports = {
   // student
   studentRequestOtp,
   studentVerifyOtpAndRegister,
-  // password reset
+  // password
   forgotPassword,
   resetPassword,
+  changePassword,
   // login
   login,
 };

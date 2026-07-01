@@ -1,0 +1,212 @@
+{
+    "info": {
+        "_postman_id": "auth-api-collection-id",
+        "name": "Auth APIs",
+        "description": "Collection for general Authentication operations (Login, Admin Registration Request, Forgot & Reset Password, and Change Password).",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Login",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"superadmin@example.com\",\n    \"password\": \"ChangeThisPassword123!\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:3000/api/auth/login",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "3000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "login"
+                    ]
+                },
+                "description": "Shared entry point for login for all roles. Returns JWT Token."
+            },
+            "response": []
+        },
+        {
+            "name": "Submit Admin Request (Form-Data for Multer)",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "full_name",
+                            "value": "New Admin Name",
+                            "type": "text"
+                        },
+                        {
+                            "key": "email",
+                            "value": "admin@example.com",
+                            "type": "text"
+                        },
+                        {
+                            "key": "password",
+                            "value": "AdminSecurePassword123!",
+                            "type": "text"
+                        },
+                        {
+                            "key": "university_name",
+                            "value": "Cairo University",
+                            "type": "text"
+                        },
+                        {
+                            "key": "faculty_name",
+                            "value": "Faculty of Computers and Artificial Intelligence",
+                            "type": "text"
+                        },
+                        {
+                            "key": "email_domain",
+                            "value": "fci-cu.edu.eg",
+                            "type": "text"
+                        },
+                        {
+                            "key": "supporting_document",
+                            "description": "Select an Image or PDF file from your device",
+                            "type": "file",
+                            "src": []
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "http://localhost:3000/api/auth/admin/register",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "3000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "admin",
+                        "register"
+                    ]
+                },
+                "description": "Submits a request for a new Admin account using form-data to allow file uploads (Multer compatible)."
+            },
+            "response": []
+        },
+        {
+            "name": "Forgot Password",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"superadmin@example.com\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:3000/api/auth/forgot-password",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "3000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "forgot-password"
+                    ]
+                },
+                "description": "Sends an OTP code to the registered email address."
+            },
+            "response": []
+        },
+        {
+            "name": "Reset Password",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"superadmin@example.com\",\n    \"otp_code\": \"123456\",\n    \"new_password\": \"MyNewSuperSecurePassword2026!\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:3000/api/auth/reset-password",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "3000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "reset-password"
+                    ]
+                },
+                "description": "Resets the user's password using the received OTP code."
+            },
+            "response": []
+        },
+        {
+            "name": "Change Password (Inside Account)",
+            "request": {
+                "auth": {
+                    "type": "bearer",
+                    "bearer": [
+                        {
+                            "key": "token",
+                            "value": "{{your_jwt_token_here}}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"current_password\": \"ChangeThisPassword123!\",\n    \"new_password\": \"MyBrandNewSecurePassword2026!\"\n}"
+                },
+                "url": {
+                    "raw": "http://localhost:3000/api/auth/change-password",
+                    "protocol": "http",
+                    "host": [
+                        "localhost"
+                    ],
+                    "port": "3000",
+                    "path": [
+                        "api",
+                        "auth",
+                        "change-password"
+                    ]
+                },
+                "description": "Changes the password from inside the user account. Requires a valid JWT token passed in the Authorization header."
+            },
+            "response": []
+        }
+    ]
+}

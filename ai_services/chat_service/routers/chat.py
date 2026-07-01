@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from better_profanity import profanity
 import logging
 
 from config.database import get_db
@@ -22,18 +24,42 @@ from services.regulation_service import get_relevant_regulations
 logger = logging.getLogger("chat_service")
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+# English offensive words handled by better_profanity built-in list
+profanity.load_censor_words()
+
+# Arabic offensive words checked separately since better_profanity does not handle Arabic reliably
+_ARABIC_OFFENSIVE = {
+    "غبي", "حمار", "كلب", "وسخ", "زبالة", "متخلف",
+    "بهيم", "تيس", "عرص", "منيوك", "احا", "زفت",
+    "كس", "نيك", "شرموط", "عيل",
+}
+
 MAX_MESSAGES  = 20
-MAX_OFFENSIVE = 3
+MAX_OFFENSIVE = 2
 
 LIMIT_EN   = "This conversation has reached its message limit. Please start a new conversation to submit a different complaint."
 LIMIT_AR   = "وصلت هذه المحادثة إلى الحد الأقصى للرسائل. يرجى بدء محادثة جديدة لتقديم شكوى مختلفة."
-BLOCKED_EN = "This conversation has been closed due to repeated offensive language. The administration has been notified."
-BLOCKED_AR = "تم إغلاق هذه المحادثة بسبب الاستمرار في استخدام ألفاظ مسيئة. تم إبلاغ الإدارة."
+BLOCKED_EN = "This conversation has been closed due to offensive language. The administration has been notified."
+BLOCKED_AR = "تم إغلاق هذه المحادثة بسبب استخدام ألفاظ مسيئة. تم إبلاغ الإدارة."
+WARN_1_EN  = "Please keep this conversation respectful. This has been logged. One more offensive message will close this conversation."
+WARN_1_AR  = "يرجى الحفاظ على لغة محترمة. تم تسجيل هذه الرسالة. رسالة مسيئة أخرى ستغلق هذه المحادثة."
+
+SUBMITTED_EN = "Your complaint has been submitted successfully. You can track it from your complaints page."
+SUBMITTED_AR = "تم تقديم شكواك بنجاح. يمكنك متابعتها من صفحة الشكاوى."
 
 ACCEPT_EN  = {"yes","yeah","yep","worked","solved","resolved","thanks","fixed","got it","that works","great","ok","okay"}
 ACCEPT_AR  = {"نعم","ايوه","أيوه","تمام","اتحل","حل","شغال","اشتغل","شكرا","شكراً","ممتاز","حسناً","اوكي"}
 DECLINE_EN = {"no","not","didn't","doesn't","still","submit","go ahead","file it","nope"}
 DECLINE_AR = {"لا","مش","لسه","ابعت","قدم","سجل","لأ"}
+
+
+def _is_offensive(message: str) -> bool:
+    # Check English using better_profanity
+    if profanity.contains_profanity(message):
+        return True
+    # Check Arabic by splitting on spaces and checking each word against the set
+    words = message.strip().split()
+    return any(w in _ARABIC_OFFENSIVE for w in words)
 
 
 def _build_problem_text(summary: str, details: dict) -> str:
@@ -52,21 +78,21 @@ def _is_acceptance(message: str, language: str) -> bool:
     return any(w in t for w in (ACCEPT_AR if language == "ar" else ACCEPT_EN))
 
 
+async def _get_offensive_count(db: AsyncSession, session_id: int) -> int:
+    result = await db.execute(
+        text('SELECT COUNT(*) AS cnt FROM "OffensiveMessages" WHERE session_id = :sid'),
+        {"sid": session_id}
+    )
+    row = result.fetchone()
+    return int(row.cnt) if row else 0
+
+
 @router.post("/session", response_model=SessionResponse)
 async def start_session(body: StartSessionRequest, db: AsyncSession = Depends(get_db)):
     student    = await get_student_info(db, body.user_id)
     session_id = await create_session(db, body.user_id)
     name       = student.get("name", "")
-    if name:
-        greeting = (
-            f"Hello {name}! I'm the university complaint assistant. "
-            f"Please describe your complaint and I'll help you submit it or find a solution."
-        )
-    else:
-        greeting = (
-            "Hello! I'm the university complaint assistant. "
-            "Please describe your complaint and I'll help you submit it or find a solution."
-        )
+    greeting   = f"Hello {name}! How can I help you today?" if name else "Hello! How can I help you today?"
     return SessionResponse(session_id=session_id, message=greeting)
 
 
@@ -92,12 +118,33 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     else:
         language = session["language"]
 
+    # Offensive check runs before anything else — no API call wasted on offensive messages
+    if _is_offensive(body.message):
+        warnings_so_far = await _get_offensive_count(db, body.session_id)
+        new_count       = warnings_so_far + 1
+
+        await save_message(db, body.session_id, "user", body.message)
+        await log_offensive_incident(db, body.user_id, body.session_id, body.message, new_count)
+        state["offensive_count"] = new_count
+        await update_collected_state(db, body.session_id, state)
+
+        logger.warning(f"Offensive message #{new_count} — user {body.user_id} session {body.session_id}")
+
+        if new_count >= MAX_OFFENSIVE:
+            blocked = BLOCKED_AR if language == "ar" else BLOCKED_EN
+            await save_message(db, body.session_id, "assistant", blocked)
+            await close_session(db, body.session_id, status="abandoned")
+            return MessageResponse(reply=blocked, complaint_ready=False, complaint_id=None, collected_data=None)
+
+        warning = WARN_1_AR if language == "ar" else WARN_1_EN
+        await save_message(db, body.session_id, "assistant", warning)
+        return MessageResponse(reply=warning, complaint_ready=False, complaint_id=None, collected_data=state)
+
+    # Handle suggestion accept/decline before building the prompt
     if state.get("suggestion_offered"):
         if _is_acceptance(body.message, language):
             await save_message(db, body.session_id, "user", body.message)
-            closing = ("Glad that helped! Let us know if you need anything else."
-                       if language == "en" else
-                       "يسعدني أن هذا حل المشكلة! تواصل معنا إذا احتجت أي شيء آخر.")
+            closing = "Glad that helped! Let us know if you need anything else." if language == "en" else "يسعدني أن هذا حل المشكلة! تواصل معنا إذا احتجت أي شيء آخر."
             await save_message(db, body.session_id, "assistant", closing)
             await close_session(db, body.session_id)
             return MessageResponse(reply=closing, complaint_ready=False, complaint_id=None, collected_data=None)
@@ -120,29 +167,17 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         except Exception as e:
             logger.warning(f"Regulation retrieval failed: {e}")
 
-    student_info  = await get_student_info(db, body.user_id)
+    student_info = await get_student_info(db, body.user_id)
+    force_close  = state.get("questions_asked", 0) >= 3
+
     system_prompt = build_system_prompt(
-        categories, language, suggestions, state, regulations, student_info
+        categories, language, suggestions, state, regulations, student_info,
+        force_close=force_close,
     )
 
     await save_message(db, body.session_id, "user", body.message)
     result = chat_with_groq(system_prompt, history, body.message, language)
-
-    reply     = result.get("reply", "")
-    offensive = result.get("offensive_detected", False)
-
-    if offensive:
-        state["offensive_count"] = state.get("offensive_count", 0) + 1
-        count = state["offensive_count"]
-        await log_offensive_incident(db, body.user_id, body.session_id, body.message, count)
-        await update_collected_state(db, body.session_id, state)
-        if count >= MAX_OFFENSIVE:
-            blocked = BLOCKED_AR if language == "ar" else BLOCKED_EN
-            await save_message(db, body.session_id, "assistant", blocked)
-            await close_session(db, body.session_id, status="abandoned")
-            return MessageResponse(reply=blocked, complaint_ready=False, complaint_id=None, collected_data=None)
-        await save_message(db, body.session_id, "assistant", reply)
-        return MessageResponse(reply=reply, complaint_ready=False, complaint_id=None, collected_data=state)
+    reply  = result.get("reply", "")
 
     if not state.get("category_id") and result.get("category_id"):
         state["category_id"]   = result["category_id"]
@@ -210,4 +245,9 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
 
     await close_session(db, body.session_id)
     logger.info(f"Complaint {complaint_id} submitted — user {body.user_id}")
-    return MessageResponse(reply=reply, complaint_ready=True, complaint_id=complaint_id, collected_data=state)
+
+    # Use a hardcoded submission confirmation in the correct language
+    # so the student always receives a clear message regardless of what the LLM said
+    submission_reply = SUBMITTED_AR if language == "ar" else SUBMITTED_EN
+
+    return MessageResponse(reply=submission_reply, complaint_ready=True, complaint_id=complaint_id, collected_data=state)

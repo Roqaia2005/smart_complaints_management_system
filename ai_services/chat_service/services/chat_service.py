@@ -78,15 +78,35 @@ async def validate_session(db: AsyncSession, session_id: int, user_id: int) -> d
     if row.minutes_idle and row.minutes_idle > SESSION_TIMEOUT_MINUTES:
         await close_session(db, row.id, status="abandoned")
         return None
-    state = row.collected_data or {}
+
+    # collected_data may come back as a string or a dict depending on the
+    # database driver and column type. Always parse to ensure it is a dict.
+    raw = row.collected_data
+    if isinstance(raw, str):
+        try:
+            state = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            state = {}
+    elif isinstance(raw, dict):
+        state = raw
+    else:
+        state = {}
+
+    # Apply defaults only for keys that are genuinely missing from the dict
     defaults = {
-        "category_id": None, "category_name": None, "problem_summary": None,
-        "details": {}, "awaiting_confirmation": False, "suggestion_offered": False,
-        "offensive_count": 0, "questions_asked": 0,
+        "category_id": None,
+        "category_name": None,
+        "problem_summary": None,
+        "details": {},
+        "awaiting_confirmation": False,
+        "suggestion_offered": False,
+        "offensive_count": 0,
+        "questions_asked": 0,
     }
     for k, v in defaults.items():
         if k not in state:
             state[k] = v
+
     return {"id": row.id, "language": row.language, "state": state}
 
 
@@ -116,26 +136,6 @@ async def count_messages(db: AsyncSession, session_id: int) -> int:
 
 
 async def get_student_info(db: AsyncSession, user_id: int) -> dict:
-    """
-    Returns student name, department, academic_year.
-
-    Two possible joins depending on your schema:
-
-    OPTION A: users has a student_id foreign key pointing to Students table
-        SELECT u.full_name, s.department, s.academic_year
-        FROM users u LEFT JOIN "Students" s ON s.id = u.student_id
-        WHERE u.id = :uid
-
-    OPTION B: Students table has a user_id foreign key pointing to users
-        SELECT u.full_name, s.department, s.academic_year
-        FROM users u LEFT JOIN "Students" s ON s.user_id = u.id
-        WHERE u.id = :uid
-
-    Check your models and use the right query below. Both are written out.
-    Comment out the one you do not use.
-    """
-
-    
     result = await db.execute(
         text('''
             SELECT u.full_name, s.department, s.academic_year
@@ -145,7 +145,6 @@ async def get_student_info(db: AsyncSession, user_id: int) -> dict:
         '''),
         {"uid": user_id}
     )
-
     row = result.fetchone()
     if not row:
         return {}
