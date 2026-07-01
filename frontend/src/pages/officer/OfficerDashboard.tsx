@@ -52,7 +52,7 @@ function EscalateModal({ complaint, onClose, onSuccess }: {
 
   useEffect(() => {
     officerApi.getAllOfficers()
-      .then(res => setOfficers(res.data?.officers ?? []))
+      .then(res => setOfficers(res.data.data?.officers ?? []))
       .catch(() => setError('Failed to load officers list.'))
       .finally(() => setLoading(false));
   }, []);
@@ -63,18 +63,17 @@ function EscalateModal({ complaint, onClose, onSuccess }: {
   );
 
   const handleEscalate = async () => {
-    if (!selectedId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      // TODO: replace with dedicated assign endpoint: await officerApi.assignComplaint(complaint.id, selectedId)
-      await officerApi.updateComplaintStatus(complaint.id, 'in_progress');
-      onSuccess(complaint.id);
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
-      setSubmitting(false);
-    }
-  };
+  if (!selectedId) return;
+  setSubmitting(true);
+  setError(null);
+  try {
+    await officerApi.escalateComplaint(complaint.id, selectedId);
+    onSuccess(complaint.id);
+  } catch (err: any) {
+    setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">

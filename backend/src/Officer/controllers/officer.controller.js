@@ -7,7 +7,8 @@ const {
     markAppealReviewedService,
     getOfficerDashboardStats,
     getAllOfficersService  ,
-    getAssignedCategoriesService
+    getAssignedCategoriesService,
+    escalateComplaintService
 } = require('../services/officer.service');
 
 // =========================================================
@@ -210,5 +211,23 @@ exports.getAssignedCategoriesController = async (req, res) => {
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.escalateComplaintController = async (req, res) => {
+  try {
+    const { id } = req.params;               // complaint id
+    const { target_officer_id } = req.body;
+    const currentOfficerId = req.user.id;
+
+    if (!target_officer_id) {
+      return res.status(400).json({ success: false, error: 'target_officer_id is required.' });
+    }
+
+    const data = await escalateComplaintService(id, target_officer_id, currentOfficerId);
+    return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };

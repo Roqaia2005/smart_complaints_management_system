@@ -91,7 +91,9 @@ function EscalateModal({ complaintId, complaintProblem, onClose, onSuccess }: Es
 
   useEffect(() => {
     officerApi.getAllOfficers()
-      .then(res => setOfficers(res.data?.officers ?? []))
+      .then(res =>{
+        console.log(res)
+        setOfficers(res.data.data?.officers ?? [])} )
       .catch(() => setError('Failed to load officers list.'))
       .finally(() => setLoading(false));
   }, []);
@@ -102,20 +104,17 @@ function EscalateModal({ complaintId, complaintProblem, onClose, onSuccess }: Es
   );
 
   const handleEscalate = async () => {
-    if (!selectedId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      // Mark complaint as in_progress to signal escalation/assignment.
-      // TODO: replace with a dedicated assign endpoint once available:
-      // await officerApi.assignComplaint(complaintId, selectedId)
-      await officerApi.updateComplaintStatus(complaintId, 'in_progress');
-      onSuccess();
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
-      setSubmitting(false);
-    }
-  };
+  if (!selectedId) return;
+  setSubmitting(true);
+  setError(null);
+  try {
+    await officerApi.escalateComplaint(complaintId, selectedId);
+    onSuccess();
+  } catch (err: any) {
+    setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -465,7 +464,7 @@ export default function OfficerComplaintDetails() {
                   {complaint.since && (
                     <div className="flex items-center gap-1.5">
                       <Calendar size={14} className="text-slate-400" />
-                      <span>Happened Since: <strong>{new Date(complaint.since).toLocaleString()}</strong></span>
+                      <span>Happened Since: <strong>{complaint.since}  </strong></span>
                     </div>
                   )}
                 </div>
