@@ -27,7 +27,7 @@ export default function ManagerHeatmap() {
       const payload = response.data as HeatmapResponse;
       setItems(payload.heatmap ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load heatmap data.');
+      setError(err instanceof Error ? err.message : 'Unable to load analytics data.');
       setItems([]);
     } finally {
       setLoading(false);
@@ -84,11 +84,11 @@ export default function ManagerHeatmap() {
           )}
 
           {loading ? (
-            <div className="rounded-xl border border-slate-200 p-8 text-sm text-slate-500">Loading heatmap…</div>
+            <div className="rounded-xl border border-slate-200 p-8 text-sm text-slate-500">Loading analytics…</div>
           ) : (
             <div className="space-y-4">
               {items.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">No heatmap data returned for this dimension.</div>
+                <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">No analytics data returned for this dimension.</div>
               ) : (
                 items.map((item) => (
                   <div key={item.label} className="space-y-2">

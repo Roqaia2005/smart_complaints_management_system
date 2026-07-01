@@ -272,35 +272,7 @@ export default function TopIssuesPage() {
         </div>
       </div>
 
-      {/* ── Category pill tabs ──────────────────────────────────────────────── */}
-      {categories.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => handleCategoryChange('all')}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              categoryId === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            All
-          </button>
-          {categories.map(c => (
-            <button
-              key={c.id}
-              onClick={() => handleCategoryChange(String(c.id))}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                categoryId === String(c.id)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-
+    
       {/* ── Error ──────────────────────────────────────────────────────────── */}
       {error && <ErrorBanner message={error} onRetry={fetchIssues} />}
 

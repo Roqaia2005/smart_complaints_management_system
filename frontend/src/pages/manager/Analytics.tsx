@@ -326,7 +326,7 @@ export default function AnalyticsPage() {
     ? [
         { label: 'Total Complaints', value: dashboard.totalComplaints.toLocaleString(), icon: FileText,     trend: 'neutral' as const },
         { label: 'Resolution Rate',  value: dashboard.resolutionRate,                   icon: CheckCircle,   trend: 'up'      as const },
-        { label: 'SLA Breach Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
+        { label: 'Late Response Rate',  value: dashboard.slaBreachRate,                    icon: AlertTriangle, trend: 'down'    as const },
         { label: 'Appeal Rate',      value: dashboard.appealRate,                       icon: Users,         trend: 'neutral' as const },
       ]
     : [];
@@ -600,7 +600,7 @@ export default function AnalyticsPage() {
                     name === 'total' ? 'Total' : name === 'resolved' ? 'Resolved' : 'Avg Hours',
                   ]}
                 />
-                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours'} />
+                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours Resolution time'} />
                 <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
                 <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
                 <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
