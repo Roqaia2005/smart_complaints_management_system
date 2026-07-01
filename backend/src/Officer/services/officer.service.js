@@ -330,3 +330,65 @@ exports.getAssignedCategoriesService = async (officerId) => {
 
   return { categories };
 };
+
+exports.escalateComplaintService = async (complaintId, targetOfficerId, currentOfficerId) => {
+  const categoryIds = await getOfficerCategoryIds(currentOfficerId);
+
+  // Verify current officer owns this complaint
+  const complaint = await Complaint.findOne({
+    where: {
+      id: complaintId,
+      category_id: { [Op.in]: categoryIds }
+    },
+    include: [{ model: Category, attributes: ['id', 'faculty_id'] }]
+  });
+
+  if (!complaint) {
+    throw new Error('Complaint not found or you do not have permission to escalate it.');
+  }
+
+  if (!complaint.Category) {
+    throw new Error('Complaint category data could not be loaded.');
+  }
+
+  // Verify target officer exists, is active, and is in the same faculty
+  // (category check removed — can escalate to any officer in the faculty)
+  const targetOfficer = await User.findOne({
+    where: {
+      id: targetOfficerId,
+      role: 'officer',
+      is_active: true,
+      faculty_id: complaint.Category.faculty_id
+    }
+  });
+
+  if (!targetOfficer) {
+    throw new Error('Target officer not found or not eligible.');
+  }
+
+  if (targetOfficer.id === currentOfficerId) {
+    throw new Error('Cannot escalate to yourself.');
+  }
+
+  const t = await sequelize.transaction();
+  try {
+    await complaint.update({
+      assigned_officer_id: targetOfficerId,
+      status: 'in_progress'
+    }, { transaction: t });
+
+    await ComplaintHistory.create({
+      complaint_id: complaint.id,
+      status: 'in_progress',
+      changed_by: currentOfficerId,
+      changed_at: new Date()
+    }, { transaction: t });
+
+    await t.commit();
+    return { success: true };
+
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+};

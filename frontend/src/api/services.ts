@@ -48,6 +48,8 @@ export const officerApi = {
    // Returns only the categories assigned to the logged-in officer via CategoryOfficer table
   getAssignedCategories: () =>
     apiClient.get('/officer/categories'),
+  escalateComplaint: (complaintId: number | string, target_officer_id: number) =>
+  apiClient.post(`/officer/complaints/${complaintId}/escalate`, { target_officer_id }),
 };
 
 // ── Manager ───────────────────────────────────────────────────────────────
