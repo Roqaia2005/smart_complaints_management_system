@@ -62,7 +62,6 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/change-password" element={<ChangePasswordPage />} />
 
         <Route element={<MainLayout />}>
           <Route element={<ProtectedRoute />}>
