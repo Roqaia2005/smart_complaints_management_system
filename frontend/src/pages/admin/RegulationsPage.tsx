@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getRegulations, addRegulation, deleteRegulation, getApiErrorMessage, type Regulation } from "@/api/adminApi";
+import { getRegulations, addRegulation, deleteRegulation, uploadRegulationPdf, getApiErrorMessage, type Regulation } from "@/api/adminApi";
 import {
   PageHeader,
   Card,
@@ -37,6 +37,25 @@ export default function RegulationsPage() {
   const [saving, setSaving] = useState(false);
 
   const [deletingReg, setDeletingReg] = useState<Regulation | null>(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPdf(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await uploadRegulationPdf(file);
+      setSuccess(`PDF regulation uploaded and parsed successfully. Chunk count: ${res.parsed_chunks_count || 0}`);
+      await load();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to upload regulation PDF."));
+    } finally {
+      setUploadingPdf(false);
+      e.target.value = "";
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -92,9 +111,21 @@ export default function RegulationsPage() {
         title="Regulations"
         description="University regulations referenced by category and ticket routing."
         action={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New regulation
-          </Button>
+          <div className="flex gap-2">
+            <label className="inline-flex items-center justify-center gap-2 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-11 px-6 text-sm bg-secondary text-secondary-foreground hover:opacity-85 cursor-pointer">
+              {uploadingPdf ? "Uploading..." : "Upload PDF"}
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handlePdfUpload}
+                disabled={uploadingPdf}
+              />
+            </label>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> New regulation
+            </Button>
+          </div>
         }
       />
 

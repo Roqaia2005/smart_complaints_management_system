@@ -101,6 +101,11 @@ export default function ComplaintDetails() {
   const [isSubmittingAppeal, setIsSubmittingAppeal] = React.useState(false);
   const [appealError, setAppealError] = React.useState<string | null>(null);
 
+  // studentController.js uses `{ error: err.message }` for 500s and only
+  // `{ message: ... }` for the 404 in getDetails — check both keys.
+  const extractApiError = (err: any, fallback: string) =>
+    err?.response?.data?.message || err?.response?.data?.error || fallback;
+
   const fetchComplaintDetails = React.useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -112,7 +117,7 @@ export default function ComplaintDetails() {
       setHistoryItems(res.data.history || []);
     } catch (err: any) {
       console.error(err);
-      setError('Failed to fetch complaint details. It might have been deleted or you do not have permission.');
+      setError(extractApiError(err, 'Failed to fetch complaint details. It might have been deleted or you do not have permission.'));
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +142,7 @@ export default function ComplaintDetails() {
       fetchComplaintDetails();
     } catch (err: any) {
       console.error(err);
-      setAppealError(err.response?.data?.message || 'Failed to submit appeal. Please try again.');
+      setAppealError(extractApiError(err, 'Failed to submit appeal. Please try again.'));
     } finally {
       setIsSubmittingAppeal(false);
     }
@@ -243,7 +248,7 @@ export default function ComplaintDetails() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2">
                   <Calendar size={16} className="text-slate-400" />
-                  <span>Happened Since: <strong>{new Date(data.since).toLocaleString()}</strong></span>
+                  <span>Happened Since: <strong>{data.since}</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <User size={16} className="text-slate-400" />
@@ -339,7 +344,7 @@ export default function ComplaintDetails() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-950 text-white border-slate-850">
+          {/* <Card className="bg-slate-950 text-white border-slate-850">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-widest">
                 <Sparkles size={14} /> AI Recommendation
@@ -351,7 +356,7 @@ export default function ComplaintDetails() {
                 }
               </p>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 

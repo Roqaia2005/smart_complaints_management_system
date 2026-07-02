@@ -344,6 +344,7 @@ exports.createUserService = async (data, facultyId) => {
       is_active: true,
       faculty_id: numericFacultyId,
       manager_title: manager_title.trim(),
+      is_also_manager: true,
     });
 
     return { success: true, role, data: manager };
@@ -846,4 +847,71 @@ exports.getOffensiveMessages = (facultyId) => {
       type: sequelize.QueryTypes.SELECT,
     },
   );
+};
+
+
+// Creates the "Other" category for a faculty if it does not already exist
+// Called on server startup so the category is always available
+exports.ensureOtherCategoryExists = async (facultyId) => {
+  const existing = await Category.findOne({
+    where: { faculty_id: facultyId, is_other: true },
+  });
+
+  if (existing) return existing;
+
+  const other = await Category.create({
+    name: 'Other / أخرى',
+    description: 'Complaints that do not fit any existing category — reviewed and reassigned by admin.',
+    sla_hours: 72,
+    faculty_id: facultyId,
+    is_active: true,
+    is_other: true,
+  });
+
+  console.log(`Created "Other" category for faculty ${facultyId} with id ${other.id}`);
+  return other;
+};
+
+// Returns complaints that stayed under the "Other" category after rerouting failed
+exports.getUncategorizedComplaints = async (facultyId) => {
+  const otherCategory = await Category.findOne({
+    where: { faculty_id: Number(facultyId), is_other: true },
+  });
+
+  if (!otherCategory) return [];
+
+  return sequelize.query(
+    `SELECT c.id, c.problem, c.ai_summary, c.priority, c.status, c."createdAt",
+            u.full_name AS student_name, u.email AS student_email
+     FROM "Complaints" c
+     JOIN users u ON u.id = c.user_id
+     WHERE c.category_id = :categoryId
+     ORDER BY c."createdAt" DESC`,
+    {
+      replacements: { categoryId: otherCategory.id },
+      type: sequelize.QueryTypes.SELECT,
+    }
+  );
+};
+
+// Reassigns a complaint from "Other" to a proper category chosen by the admin
+exports.reassignComplaint = async (complaintId, newCategoryId, facultyId) => {
+  const category = await Category.findOne({
+    where: { id: newCategoryId, faculty_id: Number(facultyId), is_active: true },
+  });
+
+  if (!category) {
+    throw new Error('Target category not found or does not belong to your faculty.');
+  }
+
+  if (category.is_other) {
+    throw new Error('Cannot reassign to the Other category.');
+  }
+
+  const complaint = await Complaint.findByPk(complaintId);
+  if (!complaint) throw new Error('Complaint not found.');
+
+  await complaint.update({ category_id: newCategoryId });
+
+  return { success: true, new_category_name: category.name };
 };

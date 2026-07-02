@@ -19,22 +19,45 @@ import { useAuthStore } from '../../store/authStore';
 
 const CHAT_API_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:8000';
 
+type ChatPhase = 'starting' | 'active' | 'uploading' | 'thinking' | 'submitted' | 'closed' | 'error';
+
 type SessionResponse = {
   session_id: number;
   message: string;
+};
+
+type CollectedChatData = {
+  category_id?: number;
+  category_name?: string;
+  problem_summary?: string;
+  suggestion_offered?: boolean;
+  offensive_count?: number;
+  details?: Record<string, string>;
+  questions_asked?: number;
 };
 
 type ChatBackendResponse = {
   reply: string;
   complaint_ready: boolean;
   complaint_id?: number | null;
-  collected_data?: Record<string, any> | null;
+  collected_data?: CollectedChatData | null;
 };
 
 type BackendErrorResponse = {
   detail?: string | string[];
   message?: string;
 };
+
+function toChatServiceUrl(path: string): string {
+  const base = CHAT_API_URL.replace(/\/$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
+
+function toAbsoluteChatUrl(url: string): string {
+  if (!url || url.startsWith('http')) return url;
+  return toChatServiceUrl(url);
+}
 
 // --- Voice input (Web Speech API) -----------------------------------------
 // Minimal ambient typings: SpeechRecognition isn't in every TS DOM lib, and we
@@ -111,7 +134,7 @@ const MessageList = React.memo(function MessageList({ messages }: { messages: Ch
                 <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-100/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 p-3 text-xs text-slate-600 dark:text-slate-300">
                   <UploadCloud size={14} />
                   {msg.attachment.url ? (
-                    <a href={msg.attachment.url} target="_blank" rel="noreferrer" className="underline hover:text-slate-900 dark:hover:text-white">
+                    <a href={toAbsoluteChatUrl(msg.attachment.url)} target="_blank" rel="noreferrer" className="underline hover:text-slate-900 dark:hover:text-white">
                       {msg.attachment.name}
                     </a>
                   ) : (
@@ -142,6 +165,9 @@ export default function StudentChatbot() {
   const [voiceError, setVoiceError] = React.useState<string | null>(null);
   const [voiceLang, setVoiceLang] = React.useState<VoiceLang>('en-US');
   const [chatActive, setChatActive] = React.useState(false);
+  const [chatPhase, setChatPhase] = React.useState<ChatPhase>('starting');
+  const [collectedData, setCollectedData] = React.useState<CollectedChatData | null>(null);
+  const [relatedComplaintId, setRelatedComplaintId] = React.useState<number | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const sessionInitRef = React.useRef(false);
@@ -175,7 +201,7 @@ export default function StudentChatbot() {
   const createSession = React.useCallback(
     async (appendInitialMessage = true): Promise<number> => {
       const userId = normalizeUserId();
-      const response = await fetch(`${CHAT_API_URL}/chat/session`, {
+      const response = await fetch(toChatServiceUrl('/chat/session'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId }),
@@ -209,7 +235,7 @@ export default function StudentChatbot() {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${CHAT_API_URL}/upload`, {
+    const response = await fetch(toChatServiceUrl('/api/upload'), {
       method: 'POST',
       body: formData,
     });
@@ -220,7 +246,9 @@ export default function StudentChatbot() {
       throw new Error(message);
     }
 
-    return payload?.url || '';
+    // upload.py returns a relative path like "/uploads/xxx.png" — resolve it
+    // against the chat API host, not the frontend's own origin.
+    return toAbsoluteChatUrl(payload?.url || '');
   }, [parseJsonBody, getBackendError]);
 
   const createSessionOnce = React.useCallback(
@@ -257,14 +285,15 @@ export default function StudentChatbot() {
         attachment_url,
       };
 
-      const response = await fetch(`${CHAT_API_URL}/chat/message`, {
+      const response = await fetch(toChatServiceUrl('/chat/message'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
       if (response.status === 404 && retryOnClosed) {
-        const newSessionId = await createSessionOnce(false);
+        const newSessionId = await createSession(false);
+        setSessionId(newSessionId);
         return sendMessageRequest(message, attachment_url, newSessionId, false);
       }
 
@@ -280,7 +309,7 @@ export default function StudentChatbot() {
       const messageText = getBackendError(payload, `Server error: ${response.statusText}`);
       throw new Error(messageText);
     },
-    [normalizeUserId, createSessionOnce, parseJsonBody, getBackendError]
+    [normalizeUserId, createSession, parseJsonBody, getBackendError]
   );
 
   React.useEffect(() => {
@@ -472,6 +501,17 @@ export default function StudentChatbot() {
             timestamp: new Date().toISOString(),
           },
         ]);
+        setSessionId(null);
+      }
+
+      // Check if session has been closed by guardrails, limit, or similar
+      const isClosed = apiResponse.reply.includes("closed") || 
+                       apiResponse.reply.includes("إغلاق") || 
+                       apiResponse.reply.includes("limit") || 
+                       apiResponse.reply.includes("الحد الأقصى") ||
+                       apiResponse.reply.includes("reopened");
+      if (isClosed) {
+        setSessionId(null);
       }
 
       if (attachmentUrl) {

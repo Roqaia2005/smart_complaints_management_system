@@ -1,4 +1,5 @@
 import { apiClient } from './adminApi';
+import backendApi from './backendApi';
 
 // ── Student / Complaints ──────────────────────────────────────────────────
 export const studentApi = {
@@ -7,20 +8,27 @@ export const studentApi = {
     category_id: number;
     problem: string;
     location?: string;
+    since?: string;
   }) => apiClient.post('/complaints', data),
-
+ 
   getMyComplaints: (student_id: number) =>
     apiClient.get(`/complaints/student/${student_id}`),
-
+ 
   getComplaintDetails: (id: number | string) =>
     apiClient.get(`/complaints/${id}`),
-
+ 
   submitAppeal: (id: number | string, reason: string, user_id: number) =>
     apiClient.post(`/complaints/${id}/appeal`, { reason, user_id }),
-
-  getCategories: () =>
-    apiClient.get('/complaints/categories'),
+ 
+  // studentController.getCategories reads `req.query.faculty_id` and passes
+  // it to getActiveCategories(facultyId) — without forwarding it here,
+  // students see categories from every faculty instead of just their own.
+  getCategories: (faculty_id?: number) =>
+    apiClient.get('/complaints/categories', {
+      params: faculty_id ? { faculty_id } : undefined,
+    }),
 };
+ 
 
 // ── Officer ───────────────────────────────────────────────────────────────
 export const officerApi = {
@@ -48,6 +56,8 @@ export const officerApi = {
    // Returns only the categories assigned to the logged-in officer via CategoryOfficer table
   getAssignedCategories: () =>
     apiClient.get('/officer/categories'),
+  escalateComplaint: (complaintId: number | string, target_officer_id: number) =>
+  apiClient.post(`/officer/complaints/${complaintId}/escalate`, { target_officer_id }),
 };
 
 // ── Manager ───────────────────────────────────────────────────────────────
@@ -210,7 +220,7 @@ export const adminApi = {
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const authApi = {
   login: (data: { email: string; password: string }) =>
-    apiClient.post('/auth/login', data),
+    backendApi.post('/auth/login', data),
 
   registerAdmin: (data: {
     full_name: string;
@@ -220,18 +230,18 @@ export const authApi = {
     faculty_name: string;
     email_domain: string;
     supporting_document: string;
-  }) => apiClient.post('/auth/admin/register', data),
+  }) => backendApi.post('/auth/admin/register', data),
 
   forgotPassword: (data: { email: string }) =>
-    apiClient.post('/auth/forgot-password', data),
+    backendApi.post('/auth/forgot-password', data),
 
   resetPassword: (data: { token: string; password: string }) =>
-    apiClient.post('/auth/reset-password', data),
+    backendApi.post('/auth/reset-password', data),
    changePassword: (data: {
     current_password: string;
     new_password: string;
   }) =>
-    apiClient.patch('/auth/change-password', data),
+    backendApi.patch('/auth/change-password', data),
 };
 
 // ── Super Admin ───────────────────────────────────────────────────────────

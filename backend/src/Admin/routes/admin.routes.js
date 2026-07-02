@@ -101,4 +101,11 @@ adminRoutes.get("/audit-logs", adminController.getAuditLogs);
 // =========================================================
 adminRoutes.get("/offensive-messages", adminController.getOffensiveMessages);
 
+
+
+adminRoutes.get('/uncategorized-complaints', adminController.getUncategorizedComplaintsController);
+adminRoutes.patch('/complaints/:id/reassign', adminController.reassignComplaintController);
+
 module.exports = adminRoutes;
+
+

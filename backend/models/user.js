@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
       User.belongsTo(models.Faculty, { foreignKey: "faculty_id" });
 
       User.hasMany(models.Complaint, { foreignKey: "user_id" });
+      User.hasMany(models.Complaint, { foreignKey: "assigned_officer_id", as: "AssignedComplaints" });
       User.hasMany(models.AuditLog, { foreignKey: "user_id" });
       User.hasMany(models.ComplaintHistory, { foreignKey: "changed_by" });
 

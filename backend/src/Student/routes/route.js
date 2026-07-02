@@ -5,10 +5,7 @@ const controller = require('../controllers/studentController');
 const validator = require('../middlewares/studentValidator');
 
 const router = express.Router();
-router.get(
-    '/categories',
-    controller.getCategories
-);
+
 router.use(authenticate, isStudent);
 // 1. إنشاء شكوى
 router.post(
@@ -24,7 +21,10 @@ router.get(
 );
 
 // 5. عرض التصنيفات
-
+router.get(
+    '/categories',
+    controller.getCategories
+);
 
 // 3. تفاصيل شكوى
 router.get(

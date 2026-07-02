@@ -27,6 +27,15 @@ exports.getDashboardData = async (req, res) => {
             data: dashboardStats
         });
     } catch (error) {
+        // تمييز خطأ عدم الصلاحية (403) عن أخطاء السيرفر الحقيقية (500)
+        if (error.message === 'Unauthorized category selection.') {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized category selection",
+                error: error.message
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
@@ -40,13 +49,13 @@ exports.getDashboardData = async (req, res) => {
 // =========================================================
 exports.departmentPerformanceController = async (req, res) => {
     try {
-        const managerId = req.user.id; // حماية لضمان عزل الأقسام
-        const filters = req.query; // استقبال (from, to, category_id, status)
+        const managerId = req.user.id; // حماية لضمان عزل الأقسام (Data Isolation)
+        const filters = req.query; // استقبال الفلاتر (from, to, category_id, status)
         
-        // تمرير الـ managerId والـ filters معاً
+        // تمرير الـ managerId والـ filters معاً للسيرفس المعدلة
         const data = await departmentPerformanceService(managerId, filters);
         
-        // لو السيرفس رجعت خطأ عدم صلاحية الـ Category
+        // لو السيرفس رجعت خطأ عدم صلاحية الـ Category لفئات المدير
         if (data.error) {
             return res.status(403).json({
                 success: false,
@@ -54,6 +63,8 @@ exports.departmentPerformanceController = async (req, res) => {
             });
         }
 
+        // الـ Response هيرجع تلقائياً جواه المؤشرات الجديدة:
+        // (name, total, resolved, resolved_within_deadline, resolved_after_deadline)
         return res.status(200).json({
             success: true,
             ...data
@@ -94,13 +105,14 @@ exports.heatmapController = async (req, res) => {
 // =========================================================
 // 4. Top Issues
 // =========================================================
+// =========================================================
 exports.topIssuesController = async (req, res) => {
     try {
-        const managerId = req.user.id; // حماية لمنع رؤية مشاكل كليات أخرى
+        const managerId = req.user.id;
         const { category_id } = req.query;
-        
+ 
         const data = await topIssuesService(managerId, category_id || null);
-        
+ 
         return res.status(200).json({
             success: true,
             ...data

@@ -7,7 +7,8 @@ const {
     markAppealReviewedService,
     getOfficerDashboardStats,
     getAllOfficersService  ,
-    getAssignedCategoriesService
+    getAssignedCategoriesService,
+    escalateComplaintService
 } = require('../services/officer.service');
 
 // =========================================================
@@ -57,6 +58,7 @@ exports.getComplaintDetailsController = async (req, res) => {
 // =========================================================
 // 3. Update Complaint Status
 // =========================================================
+
 exports.updateComplaintStatusController = async (req, res) => {
     try {
         const officerId = req.user.id; 
@@ -69,18 +71,43 @@ exports.updateComplaintStatusController = async (req, res) => {
 
         const formattedStatus = status.toLowerCase();
 
-        // تمرير الـ resolution_text كـ باراميتر ثالث للسيرفس بالترتيب
+        // 1. تحديث حالة الشكوى من خلال السيرفس الأساسية
         const data = await updateComplaintStatusService(id, formattedStatus, resolution_text, officerId);
+
+        // 2. نظام الإشعارات التلقائي في حال تم حل الشكوى بنجاح
+        if (formattedStatus === 'resolved') {
+            try {
+                // استدعاء الموديلز اللازمة للربط
+                const { Notification, Complaints } = require('../../../models'); 
+                
+                // جلب بيانات الشكوى لمعرفة الطالب صاحب الشكوى
+                const complaint = await Complaints.findByPk(id);
+                
+                if (complaint) {
+                    // إنشاء سجل الإشعار باللغة الإنجليزية وبشكل رسمي تماماً
+                    await Notification.create({
+                        user_id: complaint.user_id,
+                        title: 'Complaint Resolved Successfully',
+                        message: `Complaint number #${id} has been resolved and closed by the specialized department.`
+                    });
+                    console.log(`Notification triggered successfully for user: ${complaint.user_id}`);
+                }
+            } catch (notifyError) {
+                // حماية السيرفر: لو حصل أي مشكلة في جدول الإشعارات الكود لا يتوقف والشكوى تظل محفوظة
+                console.error('Notification Error but complaint saved:', notifyError.message);
+            }
+        }
+
+        // 3. إرجاع الـ response الطبيعي والسليم للفرونت إند
         return res.status(200).json(data);
 
     } catch (error) {
         return res.status(400).json({
             success: false,
-            error: error.message // سيرد بالرسالة: resolution_text is required... في حال النقص
+            error: error.message
         });
     }
 };
-
 // =========================================================
 // 4. Get Appealed Complaints
 // =========================================================
@@ -109,9 +136,10 @@ exports.getAppealedComplaintsController = async (req, res) => {
 exports.markAppealReviewedController = async (req, res) => {
     try {
         const officerId = req.user.id; 
-        const { id } = req.params;
+        const { id } = req.params; 
+        const { response_text } = req.body; // تغيير المسمى هنا أيضاً ليطابق الفرونت
 
-        const data = await markAppealReviewedService(id, officerId);
+        const data = await markAppealReviewedService(id, response_text, officerId);
         return res.status(200).json(data);
 
     } catch (error) {
@@ -130,7 +158,6 @@ exports.getDashboard = async (req, res) => {
         const officerId = req.user.id; 
         const { categoryId } = req.query;
 
-        // ✅ تصحيح: استدعاء الدالة المفكوكة مباشرة بدون اسم كائن غير موجود
         const stats = await getOfficerDashboardStats(officerId, categoryId);
 
         if (stats.error) {
@@ -184,5 +211,23 @@ exports.getAssignedCategoriesController = async (req, res) => {
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.escalateComplaintController = async (req, res) => {
+  try {
+    const { id } = req.params;               // complaint id
+    const { target_officer_id } = req.body;
+    const currentOfficerId = req.user.id;
+
+    if (!target_officer_id) {
+      return res.status(400).json({ success: false, error: 'target_officer_id is required.' });
+    }
+
+    const data = await escalateComplaintService(id, target_officer_id, currentOfficerId);
+    return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };

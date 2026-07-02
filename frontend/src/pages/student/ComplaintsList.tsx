@@ -17,9 +17,10 @@ import {
   AlertTriangle,
   Loader2,
   Plus,
-  MapPin,
   Calendar,
-  X,
+  X,,
+  Mic,
+  MicOff
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
@@ -62,7 +63,7 @@ interface BackendComplaint {
   user_id: number;
   category_id: number;
   problem: string;
-  location: string;
+  location: string | null;
   since: string;
   ai_summary: string;
   priority: number;
@@ -82,7 +83,7 @@ interface BackendCategory {
 }
 
 export default function StudentComplaints() {
-  const { user } = useAuthStore();
+  const { user, facultyId } = useAuthStore();
   const [complaints, setComplaints] = React.useState<BackendComplaint[]>([]);
   const [categories, setCategories] = React.useState<BackendCategory[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -102,6 +103,110 @@ export default function StudentComplaints() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
+  // Shown after a successful submission when the backend auto-rerouted an
+  // "Other" complaint to a more specific category (see studentService.js
+  // submitNewComplaint -> POST /api/complaints/reroute on the Python side).
+  const [submitNotice, setSubmitNotice] = React.useState<string | null>(null);
+
+  // Voice input (Web Speech API) state for the Problem Description field.
+  const [voiceLang, setVoiceLang] = React.useState<'en-US' | 'ar-EG'>('en-US');
+  const [isListening, setIsListening] = React.useState(false);
+  const [voiceError, setVoiceError] = React.useState<string | null>(null);
+  const [voiceSupported] = React.useState<boolean>(
+    typeof window !== 'undefined' &&
+    !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+  );
+  const recognitionRef = React.useRef<any>(null);
+  // Keep a live reference to the current problem text so the recognition
+  // callback (registered once per session) always appends to the latest value.
+  const problemRef = React.useRef(problem);
+  React.useEffect(() => { problemRef.current = problem; }, [problem]);
+
+  const stopListening = React.useCallback(() => {
+    recognitionRef.current?.stop();
+  }, []);
+
+  const startListening = React.useCallback(() => {
+    if (!voiceSupported) {
+      setVoiceError('Voice input is not supported in this browser.');
+      return;
+    }
+    setVoiceError(null);
+
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = voiceLang;
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+      if (transcript) {
+        setProblem(prev => {
+          const base = problemRef.current ?? prev;
+          const needsSpace = base && !base.endsWith(' ') && !base.endsWith('\n');
+          return `${base}${needsSpace ? ' ' : ''}${transcript}`;
+        });
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+        setVoiceError('Microphone access was denied. Please allow microphone permissions.');
+      } else if (event.error === 'no-speech') {
+        setVoiceError('No speech detected. Please try again.');
+      } else {
+        setVoiceError('Voice input failed. Please try again.');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      setVoiceError('Unable to start voice input. Please try again.');
+      setIsListening(false);
+    }
+  }, [voiceLang, voiceSupported]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  // Stop any in-progress recognition if the modal closes/unmounts.
+  React.useEffect(() => {
+    if (!isModalOpen) {
+      recognitionRef.current?.stop();
+    }
+  }, [isModalOpen]);
+
+  React.useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  // studentController.js error responses use `{ error: err.message }` for
+  // 500s (only the 404 in getDetails uses `message`) — check both keys.
+  const extractApiError = (err: any, fallback: string) =>
+    err?.response?.data?.error || err?.response?.data?.message || fallback;
+
   const fetchComplaintsAndCategories = React.useCallback(async () => {
     if (!user?.id) return;
     setIsLoading(true);
@@ -112,16 +217,17 @@ export default function StudentComplaints() {
       const [complaintsRes, categoriesRes] = await Promise.all([
         studentApi.getMyComplaints(studentUserId),
         studentApi.getCategories(),
+        studentApi.getCategories(facultyId ?? undefined)
       ]);
       setComplaints(complaintsRes.data.complaints || []);
       setCategories(categoriesRes.data.categories || []);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to fetch your complaints. Please reload the page.");
+      setError(extractApiError(err, "Failed to fetch your complaints. Please reload the page."));
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, facultyId]);
 
   React.useEffect(() => {
     fetchComplaintsAndCategories();
@@ -138,6 +244,7 @@ export default function StudentComplaints() {
 
     setIsSubmitting(true);
     setSubmitError(null);
+    setSubmitNotice(null);
 
     try {
       const studentUserId =
@@ -149,20 +256,28 @@ export default function StudentComplaints() {
         location,
         since: new Date(sinceDate).toISOString(),
       } as any);
+        since: new Date(sinceDate).toISOString()
+      });
+
+      // submitNewComplaint returns { rerouted, rerouted_to } when an "Other"
+      // complaint was auto-reclassified by the Python reroute service.
+      if (res.data?.rerouted && res.data?.rerouted_to) {
+        setSubmitNotice(`Your complaint was automatically categorized as "${res.data.rerouted_to}".`);
+      }
 
       // Reset form & reload
-      setCategoryId("");
-      setProblem("");
-      setLocation("");
-      setSinceDate("");
+      setCategoryId('');
+      setProblem('');
+      setSinceDate('');
+      setVoiceError(null);
       setIsModalOpen(false);
       fetchComplaintsAndCategories();
     } catch (err: any) {
       console.error(err);
       setSubmitError(
-        err.response?.data?.message ||
+        extractApiError(err,
           "Failed to submit complaint. Please try again.",
-      );
+      ));
     } finally {
       setIsSubmitting(false);
     }
@@ -236,6 +351,13 @@ export default function StudentComplaints() {
           </Button>
         </div>
       </div>
+
+      {submitNotice && (
+        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-400 text-sm flex items-center gap-2">
+          <MessageCircle size={16} />
+          <span>{submitNotice}</span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
@@ -511,19 +633,18 @@ export default function StudentComplaints() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                      <Calendar size={14} className="text-slate-400" />
-                      Happening Since <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="datetime-local"
-                      value={sinceDate}
-                      onChange={(e) => setSinceDate(e.target.value)}
-                      required
-                      className="h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                    <Calendar size={14} className="text-slate-400" />
+                    Happening Since <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="datetime-local"
+                    value={sinceDate}
+                    onChange={e => setSinceDate(e.target.value)}
+                    required
+                    className="h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                  />
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
