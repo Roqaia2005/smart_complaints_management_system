@@ -25,6 +25,7 @@ const getManagerCategoryIds = async (managerId) => {
 // =========================================================
 // 1. Get Manager Dashboard Stats (Isolation كامل)
 // =========================================================
+// =========================================================
 exports.getManagerDashboardStats = async (managerId, categoryId = null) => {
     const allowedCategoryIds = await getManagerCategoryIds(managerId);
 
@@ -38,9 +39,11 @@ exports.getManagerDashboardStats = async (managerId, categoryId = null) => {
         category_id: { [Op.in]: allowedCategoryIds }
     };
 
+    let selectedCategoryId = null;
     if (categoryId && categoryId !== 'all') {
         if (allowedCategoryIds.includes(parseInt(categoryId))) {
-            filterWhere.category_id = parseInt(categoryId);
+            selectedCategoryId = parseInt(categoryId);
+            filterWhere.category_id = selectedCategoryId;
         } else {
             throw new Error('Unauthorized category selection.');
         }
@@ -78,36 +81,55 @@ exports.getManagerDashboardStats = async (managerId, categoryId = null) => {
     const resolutionRate = totalComplaints > 0 ? Math.round((totalResolved / totalComplaints) * 100) + '%' : '0%';
     const appealRate = totalComplaints > 0 ? Math.round((totalAppealed / totalComplaints) * 100) + '%' : '0%';
 
-    // حساب الـ SLA Breach
-    const breachedCount = await Complaint.count({
-        where: {
-            ...filterWhere,
-            sla_deadline: { [Op.lt]: sequelize.col('resolved_at') }
-        }
+    // 3. حساب الـ SLA Breach (dynamic من sla_hours بتاع الكاتيجوري، مش عمود ثابت)
+    const breachResult = await sequelize.query(`
+        SELECT COUNT(comp.id) AS breached
+        FROM "Complaints" comp
+        JOIN "categories" cat ON cat.id = comp.category_id
+        WHERE comp.category_id IN (:allowedCategoryIds)
+        ${selectedCategoryId ? 'AND comp.category_id = :selectedCategoryId' : ''}
+        AND comp.status = 'resolved'
+        AND cat.sla_hours IS NOT NULL
+        AND comp.resolved_at > comp."createdAt" + (cat.sla_hours || ' hours')::interval
+    `, {
+        replacements: { allowedCategoryIds, selectedCategoryId },
+        type: sequelize.QueryTypes.SELECT
     });
+    const breachedCount = parseInt(breachResult[0]?.breached, 10) || 0;
     const slaBreachRate = totalComplaints > 0 ? Math.round((breachedCount / totalComplaints) * 100) + '%' : '0%';
 
     // 4. أداء الموظفين الحقيقي التابعين لكليته فقط
     const manager = await User.findByPk(managerId, { attributes: ['faculty_id'] });
+
+    // خريطة sla_hours لكل category عشان نحسب الـ deadline dynamic لكل شكوى
+    const categoriesData = await Category.findAll({
+        where: { id: { [Op.in]: allowedCategoryIds } },
+        attributes: ['id', 'sla_hours']
+    });
+    const slaHoursMap = {};
+    categoriesData.forEach(cat => { slaHoursMap[cat.id] = cat.sla_hours; });
+
     const officerPerformance = await User.findAll({
         where: { role: 'officer', faculty_id: manager.faculty_id }, // عزل الموظفين حسب الكلية
         attributes: ['id', 'full_name'],
         include: [{
             model: Complaint,
+            as: 'AssignedComplaints', // ← ده الأول: يحدد الـ alias الصح (الموظف المسؤول، مش الطالب صاحب الشكوى)
             where: { 
                 status: 'resolved',
                 category_id: filterWhere.category_id // الالتزام بالفلترة والعزل
             },
-            attributes: ['createdAt', 'resolved_at', 'sla_deadline'], 
+            attributes: ['createdAt', 'resolved_at', 'category_id'],
             required: false 
         }]
     });
 
     const formattedOfficers = officerPerformance.map(officer => {
-        const resolvedComplaints = officer.Complaints || [];
+        const resolvedComplaints = officer.AssignedComplaints || []; // ← ده التاني: يقرا من الـ alias الجديد بدل الافتراضي
         const officerTotalResolved = resolvedComplaints.length;
         
         let totalDays = 0;
+        let comparableComplaints = 0; // الشكاوى اللي ليها sla_hours معروف فقط
         let onTimeComplaints = 0;
 
         resolvedComplaints.forEach(c => {
@@ -116,17 +138,19 @@ exports.getManagerDashboardStats = async (managerId, categoryId = null) => {
                 totalDays += diffTime / (1000 * 60 * 60 * 24);
             }
 
-            if (c.resolved_at && c.sla_deadline) {
-                if (new Date(c.resolved_at) <= new Date(c.sla_deadline)) onTimeComplaints++;
-            } else if (c.resolved_at && !c.sla_deadline) {
-                onTimeComplaints++; 
+            const slaHours = slaHoursMap[c.category_id];
+            if (c.resolved_at && c.createdAt && slaHours) {
+                comparableComplaints++;
+                const deadline = new Date(new Date(c.createdAt).getTime() + slaHours * 60 * 60 * 1000);
+                if (new Date(c.resolved_at) <= deadline) onTimeComplaints++;
             }
+            // لو الكاتيجوري مالهاش sla_hours متعرّف، بنستبعدها من الحساب بدل ما نفترضها on-time
         });
 
         const avgTime = officerTotalResolved > 0 ? (totalDays / officerTotalResolved).toFixed(1) + 'd' : '0d';
-        const slaCompliance = officerTotalResolved > 0 
-            ? Math.round((onTimeComplaints / officerTotalResolved) * 100) + '%' 
-            : '100%';
+        const slaCompliance = comparableComplaints > 0
+            ? Math.round((onTimeComplaints / comparableComplaints) * 100) + '%'
+            : 'N/A';
 
         return {
             id: officer.id,
@@ -143,59 +167,81 @@ exports.getManagerDashboardStats = async (managerId, categoryId = null) => {
 // =========================================================
 // 2. Department Performance (عزل الاستعلام بـ الكلية)
 // =========================================================
+// =========================================================
 exports.departmentPerformanceService = async (managerId, filters = {}) => {
-    const allowedCategoryIds = await getManagerCategoryIds(managerId);
-    if (allowedCategoryIds.length === 0) return { departments: [] };
+  // 1. جلب الـ faculty_id الخاص بالمدير
+  const manager = await User.findByPk(managerId, { attributes: ['faculty_id'] });
+  if (!manager || !manager.faculty_id) {
+      throw new Error("Manager faculty context not found.");
+  }
+  const numericFacultyId = Number(manager.faculty_id);
+  const { from, to, category_id, status } = filters;
 
-    const { from, to, category_id, status } = filters;
-    
-    // إجبار الاستعلام على فئات كليته فقط (Data Isolation)
-    let whereClause = `WHERE s.department IS NOT NULL AND comp.category_id IN (:allowedCategoryIds)`;
-    const replacements = { allowedCategoryIds };
+  // 2. جلب الـ Categories التابعة لكلية هذا المدير (اللي هي 18 في حالتك)
+  const managerCategories = await sequelize.query(
+    `SELECT id FROM "categories" WHERE faculty_id = :numericFacultyId`,
+    { replacements: { numericFacultyId }, type: sequelize.QueryTypes.SELECT }
+  );
+  
+  const categoryIds = managerCategories.map(c => c.id);
+  if (categoryIds.length === 0) {
+      return { departments: [] }; 
+  }
 
-    if (from && to) {
-        whereClause += ` AND comp."createdAt" BETWEEN :from AND :to`;
-        replacements.from = from;
-        replacements.to = to;
-    }
-    if (category_id) {
-        if (allowedCategoryIds.includes(parseInt(category_id))) {
-            whereClause += ` AND comp.category_id = :category_id`;
-            replacements.category_id = category_id;
-        } else {
-            return { error: "Unauthorized category selection." };
-        }
-    }
-    if (status) {
-        whereClause += ` AND comp.status = :status`;
-        replacements.status = status.toLowerCase(); 
-    }
+  // 3. شروط الـ WHERE المبنية على فئات كلية المدير الحالي
+  let whereClause = `WHERE comp.category_id IN (:categoryIds)`;
+  const replacements = { categoryIds };
+  
+  if (from && to) {
+      whereClause += ` AND comp."createdAt" BETWEEN :from AND :to`;
+      replacements.from = from;
+      replacements.to = to;
+  }
+  
+  if (category_id) {
+      const selectedCatId = parseInt(category_id, 10);
+      if (categoryIds.includes(selectedCatId)) {
+          whereClause += ` AND comp.category_id = :selectedCatId`;
+          replacements.selectedCatId = selectedCatId;
+      } else {
+          return { error: "Unauthorized category selection." };
+      }
+  }
+  
+  if (status) {
+      whereClause += ` AND comp.status = :status`;
+      replacements.status = status.toLowerCase(); 
+  }
 
-    const results = await sequelize.query(`
-        SELECT
-            s.department AS name,
-            COUNT(comp.id) AS total,
-            COUNT(comp.id) FILTER (WHERE comp.status = 'resolved') AS resolved,
-            AVG(EXTRACT(EPOCH FROM (comp.resolved_at - comp."createdAt")) / 3600.0) FILTER (WHERE comp.status = 'resolved') AS avg_hours
-        FROM "Complaints" comp
-        JOIN users u ON u.id = comp.user_id
-        JOIN "Students" s ON s.id = u.student_id
-        ${whereClause}
-        GROUP BY s.department
-        ORDER BY s.department ASC
-    `, { 
-        replacements, 
-        type: sequelize.QueryTypes.SELECT 
-    });
+  // 4. الاستعلام المرن بـ LEFT JOIN المصلح للـ Grouping والـ Nulls
+  const results = await sequelize.query(`
+      SELECT
+          COALESCE(s.department, 'General Administration') AS name,
+          COUNT(comp.id) AS total,
+          COUNT(comp.id) FILTER (WHERE comp.status = 'resolved') AS resolved,
+          COUNT(comp.id) FILTER (WHERE comp.status = 'resolved' AND comp.resolved_at <= comp.sla_deadline) AS resolved_within_deadline,
+          COUNT(comp.id) FILTER (WHERE comp.status = 'resolved' AND comp.resolved_at > comp.sla_deadline) AS resolved_after_deadline
+      FROM public."Complaints" comp
+      INNER JOIN public.users u ON comp.user_id = u.id
+      LEFT JOIN public."Students" s ON u.student_id = s.id -- 🌟 هنا LEFT JOIN عشان الـ student_id = null ميتلغيش
+      ${whereClause}
+      GROUP BY COALESCE(s.department, 'General Administration') -- 🌟 تجميع صح يمنع تدمير الـ Rows
+      ORDER BY name ASC
+  `, { 
+      replacements, 
+      type: sequelize.QueryTypes.SELECT 
+  });
 
-    return {
-        departments: results.map(row => ({
-            name: row.name,
-            total: parseInt(row.total, 10) || 0,
-            resolved: parseInt(row.resolved, 10) || 0,
-            avg_hours: row.avg_hours !== null ? parseFloat(parseFloat(row.avg_hours).toFixed(1)) : 0
-        }))
-    };
+  // 5. إرسال النتيجة للفرونت إند
+  return {
+      departments: results.map(row => ({
+          name: row.name,
+          total: parseInt(row.total, 10) || 0,
+          resolved: parseInt(row.resolved, 10) || 0,
+          resolved_within_deadline: parseInt(row.resolved_within_deadline, 10) || 0,
+          resolved_after_deadline: parseInt(row.resolved_after_deadline, 10) || 0
+      }))
+  };
 };
  
 // =========================================================
@@ -266,40 +312,50 @@ exports.heatmapService = async (managerId, dimension) => {
  
 // =========================================================
 // 4. Top Issues (إضافة العزل)
-// =========================================================
 exports.topIssuesService = async (managerId, categoryId = null) => {
-    const allowedCategoryIds = await getManagerCategoryIds(managerId);
-    if (allowedCategoryIds.length === 0) return { top_issues: [] };
-
-    const whereCondition = {
-        category_id: { [Op.in]: allowedCategoryIds } // 🛑 حماية الكلية
-    };
-
-    if (categoryId) {
-        if (allowedCategoryIds.includes(parseInt(categoryId))) {
-            whereCondition.category_id = categoryId;
-        } else {
-            throw new Error('Unauthorized category selection.');
-        }
+ 
+    const manager = await User.findByPk(managerId, { attributes: ['faculty_id'] });
+   
+    if (!manager || !manager.faculty_id) {
+        throw new Error("Manager faculty context not found.");
     }
+    const numericFacultyId = Number(manager.faculty_id);
+  //console.log('DEBUG topIssues:', { managerId, numericFacultyId, categoryId });
+// بعد (صح)
+let whereClause = 'WHERE cat.faculty_id = :numericFacultyId';
+const replacements = { numericFacultyId }; // ← ضيف السطر ده هنا
 
-    const topComplaints = await Complaint.findAll({
-        where: whereCondition,
-        attributes: [
-            ['problem', 'issue_text'],
-            [fn('COUNT', col('id')), 'repetition_count']
-        ],
-        group: ['problem'],
-        order: [[fn('COUNT', col('id')), 'DESC']],
-        limit: 5,
-        raw: true
+if (categoryId) {
+    whereClause += ' AND comp.category_id = :selectedCatId';
+    replacements.selectedCatId = Number(categoryId);
+}
+ 
+    const topComplaints = await sequelize.query(`
+        SELECT 
+            TRIM(comp.problem) AS issue_text,
+            COUNT(*) AS repetition_count
+        FROM public."Complaints" comp
+        INNER JOIN public.categories cat ON comp.category_id = cat.id
+        ${whereClause}
+        GROUP BY TRIM(comp.problem)
+        ORDER BY repetition_count DESC
+        LIMIT 5
+    `, {
+        replacements,
+        type: sequelize.QueryTypes.SELECT
     });
-
+ 
     return {
         top_issues: topComplaints.map((item, index) => ({
             id: index + 1,
             title: item.issue_text || "مشكلة غير محددة",
-            count: parseInt(item.repetition_count, 10)
+            count: parseInt(item.repetition_count, 10) || 0
         }))
     };
 };
+
+// دالة مساعدة لضمان تحويل الـ Count لرقم صريح
+function relativeCount(val) {
+    const parsed = parseInt(val, 10);
+    return isNaN(parsed) ? 0 : parsed;
+}

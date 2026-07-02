@@ -6,7 +6,7 @@ module.exports = {
     host: "aws-1-eu-central-1.pooler.supabase.com",
     port: 5432,
     dialect: "postgres",
-    logging: console.log,
+    logging: false,
     dialectOptions: {
       ssl: {
         require: true,

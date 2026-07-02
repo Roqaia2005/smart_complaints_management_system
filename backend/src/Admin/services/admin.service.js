@@ -344,6 +344,7 @@ exports.createUserService = async (data, facultyId) => {
       is_active: true,
       faculty_id: numericFacultyId,
       manager_title: manager_title.trim(),
+      is_also_manager: true,
     });
 
     return { success: true, role, data: manager };

@@ -10,9 +10,12 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      
+
     Complaint.belongsTo(models.User, { foreignKey: "user_id" });
     Complaint.belongsTo(models.Category, { foreignKey: "category_id" });
+
+    // الموظف المسؤول عن حل الشكوى (مختلف عن صاحب الشكوى user_id)
+    Complaint.belongsTo(models.User, { foreignKey: "assigned_officer_id", as: "AssignedOfficer" });
 
     Complaint.hasOne(models.Appeal, { foreignKey: "complaint_id" });
     Complaint.hasMany(models.ComplaintHistory, { foreignKey: "complaint_id" });
@@ -30,7 +33,8 @@ Complaint.init({
   status: DataTypes.STRING,
   resolution_text: DataTypes.TEXT,
   resolved_at: DataTypes.DATE,
-  sla_deadline: DataTypes.DATE
+  sla_deadline: DataTypes.DATE,
+  assigned_officer_id: DataTypes.INTEGER
 }, {
   sequelize,
   modelName: 'Complaint',
