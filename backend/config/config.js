@@ -28,6 +28,6 @@ module.exports = {
     pass: process.env.MAIL_PASS,
   },
   pythonService: {
-    baseUrl: process.env.PYTHON_SERVICE_URL || "http://localhost:5000",
+    baseUrl: process.env.PYTHON_SERVICE_URL || "http://localhost:8000",
   },
 };

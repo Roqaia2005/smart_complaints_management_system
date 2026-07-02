@@ -43,7 +43,9 @@ app.include_router(upload_router)
 app.include_router(complaints_router)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(chat_router)
+from routers.categories import router as categories_router
 
+app.include_router(categories_router)
 
 @app.on_event("startup")
 async def on_startup():

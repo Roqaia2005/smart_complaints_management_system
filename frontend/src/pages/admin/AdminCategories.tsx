@@ -29,6 +29,7 @@ function CategoryModal({ initial, onClose, onSave }: CategoryModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Name is required'); return; }
+    if (!description.trim()) { setErr('Description is required'); return; }
     setSaving(true);
     try {
       await onSave({ name: name.trim(), description: description.trim(), sla_hours: Number(slaHours) });
@@ -95,7 +96,9 @@ export default function AdminCategories() {
   const load = () => {
     setLoading(true);
     adminApi.getCategories()
-      .then(res => setCategories(res.data.categories ?? []))
+      .then(res => {
+        console.log('Fetched categories:', res.data.categories);
+        setCategories(res.data.categories ?? [])})
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   };
@@ -115,10 +118,10 @@ export default function AdminCategories() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Deactivate this category?')) return;
+    if (!confirm('Delete this category?')) return;
     try {
       await adminApi.deleteCategory(id);
-      showToast('Category deactivated.');
+      showToast('Category deleted.');
       load();
     } catch (err: any) {
       showToast(err.message, false);

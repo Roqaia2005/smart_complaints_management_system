@@ -135,52 +135,75 @@ exports.getAllCategories = (facultyId) => {
   });
 };
 
-exports.createNewCategory = (data) => {
-  return Category.create({
+// تأكد من وجود متغير البيئة أو مسار الـ pythonService الصحيح عندك
+const PYTHON_SERVICE = process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+
+/**
+ * دالة مساعدة لإرسال البيانات للـ Python Service بشكل آمن (Fire-and-forget)
+ */
+const syncCategoryEmbedding = async (category) => {
+  try {
+    await axios.post(
+      `${PYTHON_SERVICE}/api/categories/embedding`,
+      {
+        category_id: category.id,
+        name: category.name,
+        description: category.description || "", // تأمين في حال عدم وجود وصف
+      },
+      { timeout: 10000 } // مهلة 10 ثواني عشان ميعلقش السيرفر
+    );
+  } catch (err) {
+    console.warn(`[Embedding Sync Warning] Failed for category ${category.id}:`, err.message);
+  }
+};
+
+// ==========================================
+// 1. Create New Category
+// ==========================================
+exports.createNewCategory = async (data) => {
+  // إنشاء الفئة في قاعدة البيانات أولاً
+  const category = await Category.create({
     name: data.name,
     description: data.description,
     sla_hours: data.sla_hours,
     faculty_id: Number(data.faculty_id) || 3,
     is_active: true,
-  }).then((category) => {
-    const relationPromises = [];
-
-    if (data.keywords && CategoryKeywords) {
-      const keywordList = data.keywords
-        .split(",")
-        .map((k) => k.trim())
-        .filter(Boolean);
-
-      keywordList.forEach((kw) => {
-        relationPromises.push(
-          CategoryKeywords.create({
-            category_id: category.id,
-            keyword: kw,
-          }).catch((err) =>
-            console.error("Failed to save keyword:", err.message),
-          ),
-        );
-      });
-    }
-
-    return Promise.all(relationPromises).then(() => {
-      return axios
-        .post(`${pythonService.baseUrl}/api/refresh-categories`)
-        .then(() => category)
-        .catch((err) => {
-          console.error(
-            `Python sync failed for category ${category.id}:`,
-            err.message,
-          );
-          return category;
-        });
-    });
   });
+
+  // التعامل مع الكلمات المفتاحية (Keywords) إذا وجدت
+  if (data.keywords && CategoryKeywords) {
+    const keywordList = data.keywords
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+
+    const relationPromises = keywordList.map((kw) => {
+      return CategoryKeywords.create({
+        category_id: category.id,
+        keyword: kw,
+      }).catch((err) =>
+        console.error(`Failed to save keyword [${kw}]:`, err.message)
+      );
+    });
+
+    await Promise.all(relationPromises);
+  }
+
+  // مزامنة الـ Embedding مع سيرفر الـ Python (تشتغل في الخلفية بدون تعطيل الـ Response)
+  // تم تعديل الـ Endpoint وإرسال بيانات الـ category بناءً على طلب Claude والـ Requirements
+  syncCategoryEmbedding(category);
+
+  return category;
 };
 
+// ==========================================
+// 2. Update Existing Category
+// ==========================================
 exports.updateCategory = async (id, data) => {
+  // تحديث البيانات في الـ DB
   await Category.update(data, { where: { id } });
 
+  // تحديث الكلمات المفتاحية (Keywords)
   if (data.keywords !== undefined) {
     await CategoryKeywords.destroy({ where: { category_id: id } });
 
@@ -200,10 +223,11 @@ exports.updateCategory = async (id, data) => {
     }
   }
 
-  try {
-    await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
-  } catch (err) {
-    console.error(`Python sync failed for category update ${id}:`, err.message);
+  // نجيب البيانات المحدثة عشان نبعتها للـ Python بكامل تفاصيلها (الاسم والوصف الجديد)
+  const updatedCategory = await Category.findByPk(id);
+  if (updatedCategory) {
+    // مزامنة الـ Embedding بالبيانات الجديدة
+    syncCategoryEmbedding(updatedCategory);
   }
 
   return { success: true };
