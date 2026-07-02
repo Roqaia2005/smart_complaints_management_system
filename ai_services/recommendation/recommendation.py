@@ -52,6 +52,7 @@ from typing import Optional
 
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
+from auth import authenticate_recommendation_user
 from groq import Groq
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -59,8 +60,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from assistant.config import GROQ_MODEL
-from assistant.services.auth import authenticate_assistant_user, AuthenticatedUser
+from config import GROQ_MODEL
 from database import get_db
 from models import AiRecommendation, Category, Faculty, User
 from translation import translate_to_english
@@ -107,7 +107,7 @@ router = APIRouter()
 
 # Roles exempt from per-faculty ownership checks (see update_status).
 # See ASSUMPTION note in the module docstring above.
-CROSS_FACULTY_ROLES = {"admin", "super_admin"}
+CROSS_FACULTY_ROLES = {"admin"}
 
 
 # ─────────────────────────────────────────────
@@ -539,10 +539,10 @@ def run_recommendation_pipeline(db: Session, faculty_id: int) -> list:
 @router.post("/api/chat/recommendations", response_model=list[RecommendationOut])
 def generate_recommendations(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     # Get user's faculty_id for data isolation
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     user = db.query(User).filter(User.id == current_user.id).first()
 
     if not user or not user.faculty_id:
@@ -563,10 +563,10 @@ def list_recommendations(
     status:      Optional[str] = None,
     category_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     # Authenticate and get user for faculty filtering
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
 
     # Get user's faculty_id for data isolation
     user = db.query(User).filter(User.id == current_user.id).first()
@@ -590,9 +590,9 @@ def update_status(
     rec_id: int,
     body: StatusUpdate,
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     allowed = {"implemented", "ignored"}
     if body.status not in allowed:
         raise HTTPException(status_code=400, detail=f"status must be one of: {allowed}")

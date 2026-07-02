@@ -7,7 +7,7 @@ import {
   Sparkles, Brain, CheckCircle2, XCircle, TrendingUp,
   Lightbulb, AlertTriangle, Clock, RefreshCw, MapPin,
   Hash, BarChart2, ChevronDown, Shield, Target, Zap,
-  Activity, FileText, Search,
+  Activity, FileText, Search, Volume2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +24,7 @@ import recommendationService, {
   type RiskLevel,
 } from '../../api/recommendationService';
 import type { Recommendation } from '../../types/recommendation';
+import { ExecutiveBriefingPanel } from '../../components/briefing';
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -664,6 +665,7 @@ export default function ManagerRecommendations() {
   const [dssBundle, setDssBundle]   = useState<DssBundle | null>(null);
   const [dssLoading, setDssLoading] = useState(true);
   const [dssError, setDssError]     = useState<string | null>(null);
+  const [showBriefing, setShowBriefing] = useState(false);
 
   const fetchDss = useCallback(async () => {
     setDssLoading(true);
@@ -750,6 +752,15 @@ export default function ManagerRecommendations() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setShowBriefing(true)}
+            className="gap-2 font-bold"
+            size="sm"
+            variant="default"
+          >
+            <Volume2 size={14} />
+            Executive Briefing
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -882,6 +893,12 @@ export default function ManagerRecommendations() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Executive Briefing Panel */}
+      <ExecutiveBriefingPanel
+        isOpen={showBriefing}
+        onClose={() => setShowBriefing(false)}
+      />
     </div>
   );
 }

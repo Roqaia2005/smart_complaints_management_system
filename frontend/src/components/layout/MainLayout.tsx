@@ -3,12 +3,11 @@ import { useAuthStore } from "../../store/authStore";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "../ui/sidebar";
 import { ThemeToggle } from "./ThemeToggle";
-import { ExecutiveAssistantShell } from "../assistant/ExecutiveAssistantShell";
+
 
 export function MainLayout() {
   const { isAuthenticated } = useAuthStore();
-  const location = useLocation();
-  const showExecutiveAssistantShell = location.pathname.startsWith("/manager");
+
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -31,7 +30,7 @@ export function MainLayout() {
               <Outlet />
             </div>
           </main>
-          {showExecutiveAssistantShell && <ExecutiveAssistantShell />}
+        
         </SidebarInset>
       </div>
     </SidebarProvider>

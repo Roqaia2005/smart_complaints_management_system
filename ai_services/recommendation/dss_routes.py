@@ -52,9 +52,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from assistant.services.auth import authenticate_assistant_user, get_user_faculty_id
-from assistant.services.cache import TTLCache
-from assistant.config import ANALYTICS_CACHE_TTL_SECONDS
+from auth import  get_user_faculty_id, authenticate_recommendation_user
+from cache import TTLCache
+from config import ANALYTICS_CACHE_TTL_SECONDS
 from database import get_db
 from dss_analytics import (
     build_category_insights,
@@ -231,11 +231,11 @@ def _build_dss_context(db: Session, faculty_id: Optional[int]):
 @router.get("/dashboard", response_model=DashboardMetrics)
 def get_dashboard_metrics(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Overall DSS dashboard metrics for management visualization.
     Scoped to the requesting manager's faculty."""
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
     ctx = _load_dss_context(db, faculty_id)
     if ctx is None:
@@ -247,11 +247,11 @@ def get_dashboard_metrics(
 @router.get("/risk-ranking", response_model=list[RiskRankingItem])
 def get_category_risk_ranking(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Category risk ranking sorted by operational risk score.
     Scoped to the requesting manager's faculty."""
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
     ctx = _load_dss_context(db, faculty_id)
     if ctx is None:
@@ -263,11 +263,11 @@ def get_category_risk_ranking(
 @router.get("/executive-summary", response_model=ExecutiveSummaryOut)
 def get_executive_summary(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Data-driven executive summary for management review.
     Scoped to the requesting manager's faculty."""
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
     ctx = _load_dss_context(db, faculty_id)
     if ctx is None:
@@ -281,11 +281,11 @@ def get_executive_summary(
 @router.get("/alerts", response_model=list[SmartAlert])
 def get_smart_alerts(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Threshold-based smart alerts for proactive management.
     Scoped to the requesting manager's faculty."""
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
     ctx = _load_dss_context(db, faculty_id)
     if ctx is None:
@@ -298,13 +298,13 @@ def get_smart_alerts(
 def get_category_insight(
     category_id: int,
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Detailed DSS insight for a single complaint category.
     Scoped to the requesting manager's faculty -- a category belonging to
     a different faculty will not appear in the faculty-filtered insights
     and correctly 404s below, without revealing that it exists elsewhere."""
-    current_user = authenticate_assistant_user(db=db, authorization=authorization)
+    current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
     ctx = _load_dss_context(db, faculty_id)
     if ctx is None:

@@ -1,8 +1,7 @@
 import axios from 'axios';
 import type { Recommendation } from '@/types/recommendation';
 import { useAuthStore } from '../store/authStore';
-
-const RECOMMENDATION_API_URL ='http://127.0.0.1:5000';
+export const RECOMMENDATION_API_URL = 'http://127.0.0.1:5000';
 
 const api = axios.create({
   baseURL: RECOMMENDATION_API_URL,
@@ -91,6 +90,30 @@ export interface DssBundle {
   alerts: SmartAlert[];
 }
 
+// ── Executive Briefing types ───────────────────────────────────────────────
+
+export interface BriefingSection {
+  section: string;
+  text: string;
+}
+
+export interface BriefingResponse {
+  sections: BriefingSection[];
+  full_text: string;
+  faculty_id?: number;
+}
+
+export interface BriefingAudioRequest {
+  voice?: string;
+  speed?: number;
+}
+
+export interface BriefingAudioResponse {
+  audio_url?: string;
+  sections: BriefingSection[];
+  duration_estimate?: number;
+}
+
 // ── Service ──────────────────────────────────────────────────────────────
 
 export const recommendationService = {
@@ -149,6 +172,23 @@ export const recommendationService = {
       this.getSmartAlerts(),
     ]);
     return { dashboard, riskRanking, executiveSummary, alerts };
+  },
+
+  // ── Executive Briefing ──────────────────────────────────────────────────
+
+  async generateBriefing(): Promise<BriefingResponse> {
+    const response = await api.post<BriefingResponse>('/api/briefing/generate');
+    return response.data;
+  },
+
+  async generateBriefingAudio(request: BriefingAudioRequest): Promise<BriefingAudioResponse> {
+    const response = await api.post<BriefingAudioResponse>('/api/briefing/audio', request);
+    return response.data;
+  },
+
+  async getBriefingStatus(): Promise<{ status: string; service: string; features: Record<string, boolean> }> {
+    const response = await api.get('/api/briefing/status');
+    return response.data;
   },
 };
 

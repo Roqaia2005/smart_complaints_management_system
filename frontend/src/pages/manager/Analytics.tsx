@@ -23,6 +23,7 @@ import {
   Pie,
 } from "recharts";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import {
   TrendingUp,
   TrendingDown,
@@ -32,8 +33,10 @@ import {
   AlertTriangle,
   Loader2,
   Tag,
+  Volume2,
 } from "lucide-react";
 import { managerApi, studentApi } from "../../api/services";
+import { ExecutiveBriefingPanel } from "../../components/briefing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -184,6 +187,7 @@ export default function AnalyticsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [showBriefing, setShowBriefing] = useState(false);
 
   // heatmap slices
   const [heatmapCategory, setHeatmapCategory] = useState<HeatmapItem[]>([]);
@@ -381,6 +385,15 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowBriefing(true)}
+            className="gap-2"
+            variant="default"
+          >
+            <Volume2 size={18} />
+            Executive Briefing
+          </Button>
+
           <label
             htmlFor="category-filter"
             className="text-sm font-medium text-muted-foreground"
@@ -816,6 +829,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Executive Briefing Panel ──────────────────────────────────────── */}
+      <ExecutiveBriefingPanel
+        isOpen={showBriefing}
+        onClose={() => setShowBriefing(false)}
+      />
     </div>
   );
 }

@@ -16,7 +16,7 @@ import logging
 from groq import Groq
 from dotenv import load_dotenv
 
-from assistant.config import GROQ_MODEL
+from config import GROQ_MODEL
 
 load_dotenv()
 
