@@ -101,6 +101,11 @@ export default function ComplaintDetails() {
   const [isSubmittingAppeal, setIsSubmittingAppeal] = React.useState(false);
   const [appealError, setAppealError] = React.useState<string | null>(null);
 
+  // studentController.js uses `{ error: err.message }` for 500s and only
+  // `{ message: ... }` for the 404 in getDetails — check both keys.
+  const extractApiError = (err: any, fallback: string) =>
+    err?.response?.data?.message || err?.response?.data?.error || fallback;
+
   const fetchComplaintDetails = React.useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -112,7 +117,7 @@ export default function ComplaintDetails() {
       setHistoryItems(res.data.history || []);
     } catch (err: any) {
       console.error(err);
-      setError('Failed to fetch complaint details. It might have been deleted or you do not have permission.');
+      setError(extractApiError(err, 'Failed to fetch complaint details. It might have been deleted or you do not have permission.'));
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +142,7 @@ export default function ComplaintDetails() {
       fetchComplaintDetails();
     } catch (err: any) {
       console.error(err);
-      setAppealError(err.response?.data?.message || 'Failed to submit appeal. Please try again.');
+      setAppealError(extractApiError(err, 'Failed to submit appeal. Please try again.'));
     } finally {
       setIsSubmittingAppeal(false);
     }

@@ -8,20 +8,27 @@ export const studentApi = {
     category_id: number;
     problem: string;
     location?: string;
+    since?: string;
   }) => apiClient.post('/complaints', data),
-
+ 
   getMyComplaints: (student_id: number) =>
     apiClient.get(`/complaints/student/${student_id}`),
-
+ 
   getComplaintDetails: (id: number | string) =>
     apiClient.get(`/complaints/${id}`),
-
+ 
   submitAppeal: (id: number | string, reason: string, user_id: number) =>
     apiClient.post(`/complaints/${id}/appeal`, { reason, user_id }),
-
-  getCategories: () =>
-    apiClient.get('/complaints/categories'),
+ 
+  // studentController.getCategories reads `req.query.faculty_id` and passes
+  // it to getActiveCategories(facultyId) — without forwarding it here,
+  // students see categories from every faculty instead of just their own.
+  getCategories: (faculty_id?: number) =>
+    apiClient.get('/complaints/categories', {
+      params: faculty_id ? { faculty_id } : undefined,
+    }),
 };
+ 
 
 // ── Officer ───────────────────────────────────────────────────────────────
 export const officerApi = {
