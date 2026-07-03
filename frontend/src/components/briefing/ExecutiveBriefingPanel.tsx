@@ -6,7 +6,7 @@
  * no conversation bubbles, just clean briefing sections.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { recommendationService , RECOMMENDATION_API_URL} from "@/api/recommendationService";
 import type {
   BriefingSection,
@@ -35,20 +35,44 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
 }) => {
   const [state, setState] = useState<BriefingState>("idle");
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
+
+  // One persistent <audio> element per generated briefing. Re-using this
+  // (instead of `new Audio()` on every Play click) is what prevents two
+  // overlapping voices and avoids re-hitting the backend/TTS on every
+  // play/pause/resume cycle.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const cleanupAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.ontimeupdate = null;
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+  };
 
   // Reset state when panel opens
   useEffect(() => {
     if (isOpen) {
+      cleanupAudio();
       setState("idle");
       setBriefing(null);
-      setAudioUrl(null);
       setCurrentSectionIndex(0);
       setError(null);
     }
+    // Stop playback if the panel is closed while audio is still going.
+    if (!isOpen) {
+      cleanupAudio();
+    }
   }, [isOpen]);
+
+  // Make sure audio is stopped if the component unmounts entirely.
+  useEffect(() => cleanupAudio, []);
 
   // Load briefing when panel opens
   useEffect(() => {
@@ -59,6 +83,7 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
 
   const loadBriefing = async () => {
     try {
+      cleanupAudio();
       setState("loading");
       setError(null);
 
@@ -72,11 +97,47 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
     }
   };
 
+  const attachAudioHandlers = (audio: HTMLAudioElement, sectionCount: number) => {
+    audio.ontimeupdate = () => {
+      // Drive section progress from the audio's real playback position
+      // instead of a separate setInterval simulation, so it can never
+      // drift out of sync with pause/resume.
+      if (!audio.duration || !isFinite(audio.duration) || sectionCount === 0) return;
+      const pct = audio.currentTime / audio.duration;
+      const idx = Math.min(sectionCount - 1, Math.floor(pct * sectionCount));
+      setCurrentSectionIndex(idx);
+    };
+    audio.onended = () => {
+      setState("ready");
+      setCurrentSectionIndex(0);
+    };
+    audio.onerror = () => {
+      setError("Audio playback failed");
+      setState("error");
+    };
+  };
+
   const handlePlayAudio = async () => {
     if (!briefing) return;
 
-    try {
+    // Resume: audio already generated and just paused -- play in place,
+    // do NOT regenerate or create a second Audio element.
+    if (audioRef.current && state === "paused") {
+      setError(null);
       setState("playing");
+      audioRef.current.play().catch(() => {
+        setError("Audio playback failed");
+        setState("error");
+      });
+      return;
+    }
+
+    // Guard against double-clicks firing a second generation request
+    // while the first is still in flight.
+    if (audioLoading) return;
+
+    try {
+      setAudioLoading(true);
       setError(null);
 
       const audioResponse: BriefingAudioResponse =
@@ -86,41 +147,14 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
         });
 
       if (audioResponse.audio_url) {
-        // Construct full URL to backend audio endpoint
+        cleanupAudio(); // just in case anything was left over
         const fullAudioUrl = `${RECOMMENDATION_API_URL}${audioResponse.audio_url}`;
-        setAudioUrl(fullAudioUrl);
-
-        // Create and play audio
         const audio = new Audio(fullAudioUrl);
-        audio.play();
+        audioRef.current = audio;
+        attachAudioHandlers(audio, briefing.sections.length);
 
-        // Simulate section progression based on duration
-        if (audioResponse.duration_estimate && briefing.sections.length > 0) {
-          const sectionDuration =
-            audioResponse.duration_estimate / briefing.sections.length;
-          const interval = setInterval(() => {
-            setCurrentSectionIndex((prev) => {
-              if (prev < briefing.sections.length - 1) {
-                return prev + 1;
-              } else {
-                clearInterval(interval);
-                return prev;
-              }
-            });
-          }, sectionDuration * 1000);
-
-          audio.onended = () => {
-            clearInterval(interval);
-            setState("ready");
-            setCurrentSectionIndex(0);
-          };
-
-          audio.onerror = () => {
-            clearInterval(interval);
-            setError("Audio playback failed");
-            setState("error");
-          };
-        }
+        setState("playing");
+        await audio.play();
       } else {
         // No audio available, just show text
         setState("ready");
@@ -129,22 +163,38 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
       console.error("Failed to generate audio:", err);
       setError("Failed to generate audio. Text briefing is available.");
       setState("ready");
+    } finally {
+      setAudioLoading(false);
     }
   };
 
   const handlePause = () => {
-    // In a real implementation, you would pause the audio element
+    audioRef.current?.pause();
     setState("paused");
   };
 
   const handleReplay = () => {
-    setCurrentSectionIndex(0);
-    handlePlayAudio();
+    if (audioRef.current) {
+      // Audio already generated -- just rewind and play, no regeneration.
+      audioRef.current.currentTime = 0;
+      setCurrentSectionIndex(0);
+      setError(null);
+      setState("playing");
+      audioRef.current.play().catch(() => {
+        setError("Audio playback failed");
+        setState("error");
+      });
+    } else {
+      handlePlayAudio();
+    }
   };
 
   const handleSkipToSection = (index: number) => {
     setCurrentSectionIndex(index);
-    // In a real implementation, you would seek to that section in the audio
+    if (audioRef.current && audioRef.current.duration && briefing) {
+      audioRef.current.currentTime =
+        (index / briefing.sections.length) * audioRef.current.duration;
+    }
   };
 
   if (!isOpen) return null;
@@ -245,12 +295,12 @@ export const ExecutiveBriefingPanel: React.FC<ExecutiveBriefingPanelProps> = ({
               {state === "ready" || state === "paused" ? (
                 <Button
                   onClick={handlePlayAudio}
-                  disabled={!briefing}
+                  disabled={!briefing || audioLoading}
                   size="sm"
                   className="gap-2"
                 >
                   <span className="text-base">▶</span>
-                  Play Briefing
+                  {audioLoading ? "Generating…" : state === "paused" ? "Resume" : "Play Briefing"}
                 </Button>
               ) : state === "playing" ? (
                 <Button

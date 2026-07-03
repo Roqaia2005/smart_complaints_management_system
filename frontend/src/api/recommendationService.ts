@@ -50,6 +50,9 @@ export interface RiskRankingItem {
   dominant_location: string;
   hotspot_location?: string;
   hotspot_share_pct?: number;
+  sla_hours?: number;
+  sla_status?: 'within_sla' | 'at_risk' | 'breached';
+  sla_source?: 'category' | 'default';
 }
 
 export interface ExecutiveSummary {

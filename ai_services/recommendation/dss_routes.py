@@ -92,6 +92,9 @@ class RiskRankingItem(BaseModel):
     confidence_level: Optional[str] = None
     decision_priority_score: Optional[int] = None
     decision_priority_level: Optional[str] = None
+    sla_hours: Optional[float] = None
+    sla_status: Optional[str] = None
+    sla_source: Optional[str] = None
 
 
 class DashboardMetrics(BaseModel):

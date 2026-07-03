@@ -40,7 +40,10 @@ def translate_batch(texts: list[str]) -> list[str]:
     """
     numbered = "\n".join(f"{i+1}. {t}" for i, t in enumerate(texts))
 
-    prompt = f"""Translate the following Arabic texts to English.
+    prompt = f"""Translate the following Arabic or Egyptian Arabic texts to English university complaints into clear natural English.
+Preserve the meaning.
+Normalize slang.
+
 Return ONLY a JSON array of translated strings in the same order as the input.
 No explanation, no numbering in the output, just the JSON array.
 
