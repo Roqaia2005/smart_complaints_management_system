@@ -47,9 +47,10 @@ export const officerApi = {
   getAppeals: (category_id?: number) =>
     apiClient.get('/officer/appeals', { params: { category_id } }),
 
-  markAppealReviewed: (id: number | string) =>
-    apiClient.patch(`/officer/appeals/${id}/review`, {}),
-  
+  // Updated: backend now expects `response_text` in the request body
+  markAppealReviewed: (id: number | string, response_text: string) =>
+    apiClient.patch(`/officer/appeals/${id}/review`, { response_text }),
+
   getAllOfficers: () =>
   apiClient.get('/officer/all'),
 
@@ -222,22 +223,17 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     backendApi.post('/auth/login', data),
 
-  registerAdmin: (data: {
-    full_name: string;
-    email: string;
-    password: string;
-    university_name: string;
-    faculty_name: string;
-    email_domain: string;
-    supporting_document: string;
-  }) => backendApi.post('/auth/admin/register', data),
+  // Changed data type to FormData to support file uploads
+  registerAdmin: (data: FormData) => 
+    backendApi.post('/auth/admin/register', data),
 
   forgotPassword: (data: { email: string }) =>
     backendApi.post('/auth/forgot-password', data),
 
   resetPassword: (data: { token: string; password: string }) =>
     backendApi.post('/auth/reset-password', data),
-   changePassword: (data: {
+
+  changePassword: (data: {
     current_password: string;
     new_password: string;
   }) =>
