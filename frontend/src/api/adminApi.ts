@@ -23,7 +23,6 @@ export const apiClient = axios.create({
 // Attach auth token automatically if you store one in localStorage.
 apiClient.interceptors.request.use((config) => {
   const persisted = localStorage.getItem("auth-storage-v2"); // <-- your actual key
-console.log("Persisted auth-storage:", persisted);
   if (persisted) {
     const { state } = JSON.parse(persisted);
 

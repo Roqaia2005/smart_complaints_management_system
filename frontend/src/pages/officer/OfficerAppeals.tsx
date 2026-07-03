@@ -28,6 +28,9 @@ export default function OfficerAppeals() {
   const [error, setError]             = useState<string | null>(null);
   const [marking, setMarking]         = useState<number | null>(null);
   const [toast, setToast]             = useState<string | null>(null);
+
+  // Officer's response text per appeal, keyed by appeal id
+  const [responseTexts, setResponseTexts] = useState<Record<number, string>>({});
  
   // Fetch only THIS officer's assigned categories — same source as dashboard
   useEffect(() => {
@@ -62,12 +65,28 @@ export default function OfficerAppeals() {
     loadAppeals();
   }, [loadAppeals]);
  
+  const handleResponseTextChange = (id: number, value: string) => {
+    setResponseTexts(prev => ({ ...prev, [id]: value }));
+  };
+
   const handleMarkReviewed = async (id: number) => {
+    const responseText = (responseTexts[id] || '').trim();
+    if (!responseText) {
+      setToast('Please write a response before marking as reviewed');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
     setMarking(id);
     try {
-      await officerApi.markAppealReviewed(id);
+      await officerApi.markAppealReviewed(id, responseText);
       setToast('Appeal marked as reviewed');
       setTimeout(() => setToast(null), 3000);
+      setResponseTexts(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       loadAppeals();
     } catch (err: any) {
       setToast('Failed to update: ' + (err.response?.data?.error || err.message));
@@ -186,6 +205,16 @@ export default function OfficerAppeals() {
                           View Case <ArrowRight size={16} />
                         </Button>
                       </Link>
+
+                      <textarea
+                        id={`response-text-${appeal.id}`}
+                        value={responseTexts[appeal.id] ?? ''}
+                        onChange={e => handleResponseTextChange(appeal.id, e.target.value)}
+                        placeholder="Write your response to this appeal…"
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-emerald-600 outline-none resize-none"
+                      />
+
                       <Button
                         id={`mark-reviewed-${appeal.id}`}
                         disabled={marking === appeal.id}

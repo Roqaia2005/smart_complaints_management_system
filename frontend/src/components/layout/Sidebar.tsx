@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import logo from '@/assets/white logo.svg';
+import logo from '@/assets/logo2.png';
 
 interface NavItem {
   label: string;
@@ -40,16 +40,15 @@ const navItems: NavItem[] = [
   // Manager
   { label: 'Overview',        icon: Activity,        path: '/manager/overview',        roles: ['manager']     },
   { label: 'Dashboard',       icon: ChartBar,        path: '/manager/analytics',       roles: ['manager']     },
-  { label: 'Analytics',       icon: Map,             path: '/manager/heatmap',         roles: ['manager']     },
   { label: 'Recommendations', icon: Lightbulb,       path: '/manager/recommendations', roles: ['manager']     },
   { label: 'Top Issues',      icon: ListTodo,        path: '/manager/top-issues',      roles: ['manager']     },
   // Admin
   { label: 'Categories',      icon: ListTodo,        path: '/admin/categories',        roles: ['admin']       },
   { label: 'Users',           icon: Users,           path: '/admin/users',             roles: ['admin']       },
+  { label: 'Insights',        icon: BarChart3,       path: '/admin/insights',          roles: ['admin']       },
   { label: 'Regulations',     icon: FileSearch,      path: '/admin/regulations',       roles: ['admin']       },
   { label: 'Priority Rules',  icon: Lock,            path: '/admin/priority-rules',    roles: ['admin']       },
   { label: 'Audit Logs',      icon: FileSearch,      path: '/admin/audit-logs',        roles: ['admin']       },
-  { label: 'Insights',        icon: BarChart3,       path: '/admin/insights',          roles: ['admin']       },
   { label: 'Uncategorized',   icon: FolderInput,     path: '/admin/uncategorized',     roles: ['admin']       },
   { label: 'Offensive Logs',  icon: ShieldAlert,     path: '/admin/offensive-messages',roles: ['admin']       },
   // Super Admin
@@ -89,16 +88,16 @@ export function Sidebar() {
     <SidebarUI className="border-r border-sidebar-border bg-sidebar">
 
       {/* Header */}
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="px-4 mt-1">
         <div className="flex items-center justify-between overflow-hidden">
-          <div className="flex items-center gap-3 transition-all duration-300">
-            <div className="flex aspect-square size-8 items-center justify-center p-1 rounded-lg bg-blue-600 text-sidebar-primary-foreground shadow-lg shadow-blue-600/20">
-              <img src={logo} alt="UniResolve" />
+          <div className="flex items-center gap-1 transition-all duration-300">
+            <div className="flex aspect-square not-only:items-center justify-center rounded-lg  ">
+              <img src={logo} alt="UniResolve" className="w-10" />
             </div>
             {isExpanded && (
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-bold text-sidebar-foreground">UniResolve</span>
-                <span className="truncate text-xs text-sidebar-foreground/60">Campus Management</span>
+            <p className="text-[0.68rem] text-muted-foreground uppercase tracking-widest mt-0.5">Complaint Management</p>
               </div>
             )}
           </div>

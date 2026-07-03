@@ -32,28 +32,36 @@ exports.submitNewComplaint = async (data) => {
 
     let finalCategoryId = data.category_id;
     let reroutedTo = null;
+    let classification = null; // NEW: exposed for admin manual-review UI
 
-    // If student picked "Other", try to auto-reroute via the Python LLM service
     if (category.is_other) {
       try {
-        const rerouteRes = await axios.post(
-          `${PYTHON_SERVICE}/api/complaints/reroute`,
+        const classifyRes = await axios.post(
+          `${PYTHON_SERVICE}/api/complaints/classify`, // CHANGED from /reroute
           {
             problem: data.problem,
             faculty_id: category.faculty_id,
           },
           { timeout: 10000 },
         );
-        if (rerouteRes.data.rerouted && rerouteRes.data.category_id) {
-          finalCategoryId = rerouteRes.data.category_id;
-          reroutedTo = rerouteRes.data.category_name;
+
+        classification = classifyRes.data;
+
+        if (classifyRes.data.rerouted && classifyRes.data.category_id) {
+          finalCategoryId = classifyRes.data.category_id;
+          reroutedTo = classifyRes.data.category_name;
         }
-      } catch (rerouteErr) {
-        // If reroute fails for any reason, keep the "Other" category — never block submission
-        console.warn(
-          "Reroute call failed, keeping Other category:",
-          rerouteErr.message,
-        );
+        // NEW: classifyRes.data.decision === "manual_review" means the
+        // complaint stays in Other, same as before. classifyRes.data.top_matches
+        // (up to 3 {id, name, similarity}) is available if you want to show
+        // admins "did you mean..." suggestions instead of a blank category list.
+      } catch (classifyErr) {
+        console.warn("Classify call failed, keeping Other category");
+  console.warn("message:", classifyErr.message);
+  console.warn("code:", classifyErr.code);
+  console.warn("cause:", classifyErr.cause);
+  console.warn("errors:", classifyErr.errors); // AggregateError sub-errors live here
+  console.warn("PYTHON_SERVICE value:", PYTHON_SERVICE);
       }
     }
 
@@ -89,6 +97,8 @@ exports.submitNewComplaint = async (data) => {
       priority: complaint.priority,
       rerouted: reroutedTo ? true : false,
       rerouted_to: reroutedTo,
+      needs_manual_review: classification?.decision === "manual_review",
+      suggested_categories: classification?.top_matches ?? [], // for admin UI
     };
   } catch (error) {
     await t.rollback();

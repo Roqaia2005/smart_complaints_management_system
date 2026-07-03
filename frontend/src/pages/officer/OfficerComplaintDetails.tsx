@@ -72,165 +72,7 @@ interface Officer {
   role: string;
 }
 
-// ─── Escalate Modal ───────────────────────────────────────────────────────────
 
-interface EscalateModalProps {
-  complaintId: number;
-  complaintProblem: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-function EscalateModal({ complaintId, complaintProblem, onClose, onSuccess }: EscalateModalProps) {
-  const [officers, setOfficers]     = useState<Officer[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-  const [search, setSearch]         = useState('');
-
-  useEffect(() => {
-    officerApi.getAllOfficers()
-      .then(res =>{
-        console.log(res)
-        setOfficers(res.data.data?.officers ?? [])} )
-      .catch(() => setError('Failed to load officers list.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filtered = officers.filter(o =>
-    o.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    o.email.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleEscalate = async () => {
-  if (!selectedId) return;
-  setSubmitting(true);
-  setError(null);
-  try {
-    await officerApi.escalateComplaint(complaintId, selectedId);
-    onSuccess();
-  } catch (err: any) {
-    setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
-    setSubmitting(false);
-  }
-};
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div>
-            <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <ArrowUpRight size={16} className="text-blue-500" />
-              Escalate Complaint
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">
-              #{complaintId} — {complaintProblem}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <X size={16} className="text-slate-400" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Select an officer to escalate this complaint to. They will be notified to take over.
-          </p>
-
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Search by name or email…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-9 text-sm border-slate-200 dark:border-slate-700"
-            />
-          </div>
-
-          <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 size={20} className="animate-spin text-slate-400" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400">
-                {search ? `No officers match "${search}".` : 'No officers available.'}
-              </div>
-            ) : (
-              filtered.map(officer => (
-                <button
-                  key={officer.id}
-                  onClick={() => setSelectedId(officer.id)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                    selectedId === officer.id
-                      ? 'bg-blue-50 dark:bg-blue-950/40'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                  )}
-                >
-                  <div className={cn(
-                    'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                    selectedId === officer.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                  )}>
-                    {officer.full_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      'text-sm font-semibold truncate',
-                      selectedId === officer.id
-                        ? 'text-blue-700 dark:text-blue-400'
-                        : 'text-slate-800 dark:text-slate-200'
-                    )}>
-                      {officer.full_name}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate">{officer.email}</p>
-                  </div>
-                  {selectedId === officer.id && (
-                    <UserCheck size={15} className="text-blue-600 flex-shrink-0" />
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
-              <AlertTriangle size={13} />
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleEscalate}
-            disabled={!selectedId || submitting || loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2"
-          >
-            {submitting && <Loader2 size={13} className="animate-spin" />}
-            <ArrowUpRight size={13} />
-            Escalate
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -248,9 +90,7 @@ export default function OfficerComplaintDetails() {
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
-  // Escalation state
-  const [showEscalate, setShowEscalate] = useState(false);
-  const [escalateSuccess, setEscalateSuccess] = useState(false);
+
 
   const fetchDetails = React.useCallback(async () => {
     if (!id) return;
@@ -314,12 +154,6 @@ export default function OfficerComplaintDetails() {
     }
   };
 
-  const handleEscalateSuccess = async () => {
-    setShowEscalate(false);
-    setEscalateSuccess(true);
-    await fetchDetails();
-    setTimeout(() => setEscalateSuccess(false), 3000);
-  };
 
   if (loading) {
     return (
@@ -350,14 +184,7 @@ export default function OfficerComplaintDetails() {
 
   return (
     <>
-      {showEscalate && (
-        <EscalateModal
-          complaintId={complaint.id}
-          complaintProblem={complaint.problem}
-          onClose={() => setShowEscalate(false)}
-          onSuccess={handleEscalateSuccess}
-        />
-      )}
+      
 
       <div className="max-w-6xl mx-auto space-y-8 animate-in">
         <div className="flex items-center justify-between">
@@ -365,28 +192,8 @@ export default function OfficerComplaintDetails() {
             <ArrowLeft size={18} className="mr-2" /> Back to Dashboard
           </Button>
 
-          {/* Escalate action — only for actionable statuses */}
-          {isEscalatable && (
-            <Button
-              variant="outline"
-              onClick={() => setShowEscalate(true)}
-              className="font-bold text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900 dark:hover:bg-amber-950/20 gap-2"
-            >
-              <ArrowUpRight size={16} />
-              Escalate to Officer
-            </Button>
-          )}
         </div>
 
-        {/* Escalation success flash */}
-        {escalateSuccess && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
-            <UserCheck className="text-emerald-600" size={18} />
-            <p className="text-emerald-700 dark:text-emerald-400 font-medium text-sm">
-              Complaint escalated successfully.
-            </p>
-          </div>
-        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 space-y-8">
@@ -555,30 +362,7 @@ export default function OfficerComplaintDetails() {
               </form>
             </Card>
 
-            <Card className="border-slate-200 dark:border-slate-800">
-              <CardHeader className="border-b border-slate-100 dark:border-slate-800">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <History size={18} className="text-slate-400" /> Recent History
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {complaint.ComplaintHistories && complaint.ComplaintHistories.length > 0 ? (
-                  <div className="space-y-4">
-                    {complaint.ComplaintHistories.map((item, i) => (
-                      <div key={item.id || i} className="flex gap-3 text-sm">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5" />
-                        <div>
-                          <p className="font-bold capitalize">{item.status === 'in_progress' ? 'Assigned' : item.status}</p>
-                          <p className="text-slate-500 text-xs">{new Date(item.changed_at).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400 text-center">No history logs recorded.</p>
-                )}
-              </CardContent>
-            </Card>
+           
           </div>
         </div>
       </div>
