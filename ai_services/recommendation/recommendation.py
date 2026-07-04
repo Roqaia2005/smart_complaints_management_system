@@ -160,6 +160,7 @@ _FETCH_SQL_BASE = """
         c.location,
         cat.id   AS category_id,
         cat.name AS category_name,
+        cat.sla_hours AS sla_hours,
         (SELECT COUNT(*) FROM "Appeals" a WHERE a.complaint_id = c.id) AS has_appeal
     FROM "Complaints" c
     JOIN categories cat ON c.category_id = cat.id
@@ -266,6 +267,7 @@ def compute_statistics(df: pd.DataFrame, min_complaints: int = MIN_COMPLAINTS_TH
             peak_day           = ("day_of_week",       safe_mode),
             peak_month         = ("month",             safe_mode),
             top_location       = ("location",          safe_mode),
+            sla_hours          = ("sla_hours",          "first"),
         )
         .reset_index()
     )
@@ -275,6 +277,11 @@ def compute_statistics(df: pd.DataFrame, min_complaints: int = MIN_COMPLAINTS_TH
     stats["avg_res_hours"]     = stats["avg_res_hours"].fillna(0).round(1)
     stats["appeal_rate_pct"]   = (stats["appeal_rate"].fillna(0)        * 100).round(1)
     stats["high_priority_pct"] = (stats["high_priority_rate"].fillna(0) * 100).round(1)
+
+    # Category.sla_hours is nullable -- keep it as plain None (not NaN/pd.NA)
+    # so downstream `.get("sla_hours")` / truthiness checks behave normally
+    # instead of raising on the ambiguous pd.NA boolean value.
+    stats["sla_hours"] = stats["sla_hours"].apply(lambda v: int(v) if pd.notna(v) else None)
 
     return stats
 

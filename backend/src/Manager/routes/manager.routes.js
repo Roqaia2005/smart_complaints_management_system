@@ -9,7 +9,8 @@ const {
     getRecommendationsController,
     updateRecommendationStatusController,
     reportsController,
-    topIssuesController
+    topIssuesController,
+    getManagerCategoriesController
 } = require('../controllers/manager.controllers');
 
 const managerRoutes = express.Router();
@@ -21,5 +22,10 @@ managerRoutes.get('/heatmap', heatmapController);
 
 // مسار نظيف وصافي بدون علامات استفهام تزعل المكتبة
 managerRoutes.get('/top-issue', topIssuesController);
+
+managerRoutes.get(
+  "/categories/by-priority", 
+  getManagerCategoriesController
+);
 
 module.exports = managerRoutes;

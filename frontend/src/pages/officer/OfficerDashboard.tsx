@@ -36,105 +36,7 @@ interface DashboardStats {
 }
 interface Officer { id: number; full_name: string; email: string; role: string; }
 
-// ─── Escalate Modal ───────────────────────────────────────────────────────────
 
-function EscalateModal({ complaint, onClose, onSuccess }: {
-  complaint: Complaint;
-  onClose: () => void;
-  onSuccess: (id: number) => void;
-}) {
-  const [officers, setOfficers]     = useState<Officer[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-  const [search, setSearch]         = useState('');
-
-  useEffect(() => {
-    officerApi.getAllOfficers()
-      .then(res => setOfficers(res.data.data?.officers ?? []))
-      .catch(() => setError('Failed to load officers list.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filtered = officers.filter(o =>
-    o.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    o.email.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleEscalate = async () => {
-  if (!selectedId) return;
-  setSubmitting(true);
-  setError(null);
-  try {
-    await officerApi.escalateComplaint(complaint.id, selectedId);
-    onSuccess(complaint.id);
-  } catch (err: any) {
-    setError(err?.response?.data?.error ?? 'Failed to escalate complaint.');
-    setSubmitting(false);
-  }
-};
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div>
-            <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <ArrowUpRight size={16} className="text-blue-500" /> Escalate Complaint
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">#{complaint.id} — {complaint.problem}</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <X size={16} className="text-slate-400" />
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400">Select an officer to escalate this complaint to.</p>
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-9 text-sm border-slate-200 dark:border-slate-700" />
-          </div>
-          <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
-            {loading ? (
-              <div className="flex items-center justify-center py-10"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
-            ) : filtered.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400">{search ? `No officers match "${search}".` : 'No officers available.'}</div>
-            ) : filtered.map(officer => (
-              <button key={officer.id} onClick={() => setSelectedId(officer.id)}
-                className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                  selectedId === officer.id ? 'bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50')}>
-                <div className={cn('flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                  selectedId === officer.id ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300')}>
-                  {officer.full_name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-semibold truncate', selectedId === officer.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200')}>{officer.full_name}</p>
-                  <p className="text-xs text-slate-400 truncate">{officer.email}</p>
-                </div>
-                {selectedId === officer.id && <UserCheck size={15} className="text-blue-600 flex-shrink-0" />}
-              </button>
-            ))}
-          </div>
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
-              <AlertCircle size={13} />{error}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button size="sm" onClick={handleEscalate} disabled={!selectedId || submitting || loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2">
-            {submitting && <Loader2 size={13} className="animate-spin" />}
-            <ArrowUpRight size={13} /> Escalate
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -150,8 +52,7 @@ export default function OfficerDashboard() {
   const [loading, setLoading]       = useState(true);
   const [loadingCats, setLoadingCats] = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [escalateTarget, setEscalateTarget]       = useState<Complaint | null>(null);
-  const [escalateSuccessId, setEscalateSuccessId] = useState<number | null>(null);
+
 
   // Fetch only THIS officer's assigned categories from CategoryOfficer table
   useEffect(() => {
@@ -181,12 +82,7 @@ export default function OfficerDashboard() {
       .finally(() => setLoading(false));
   }, [selectedCategoryId]);
 
-  const handleEscalateSuccess = (complaintId: number) => {
-    setComplaints(prev => prev.map(c => c.id === complaintId ? { ...c, status: 'in_progress' } : c));
-    setEscalateSuccessId(complaintId);
-    setEscalateTarget(null);
-    setTimeout(() => setEscalateSuccessId(null), 3000);
-  };
+  
 
   const filtered = complaints.filter(c => {
     const matchStatus = filter === 'all' || c.status === filter;
@@ -201,7 +97,6 @@ export default function OfficerDashboard() {
 
   return (
     <>
-      {escalateTarget && <EscalateModal complaint={escalateTarget} onClose={() => setEscalateTarget(null)} onSuccess={handleEscalateSuccess} />}
 
       <div className="space-y-8 animate-in">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -249,12 +144,7 @@ export default function OfficerDashboard() {
           </div>
         )}
 
-        {escalateSuccessId && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
-            <UserCheck className="text-emerald-600" size={18} />
-            <p className="text-emerald-700 dark:text-emerald-400 font-medium text-sm">Complaint #{escalateSuccessId} escalated successfully.</p>
-          </div>
-        )}
+      
 
         <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white/50 dark:bg-slate-900/30 backdrop-blur-xl">
           <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 justify-between">
@@ -294,7 +184,7 @@ export default function OfficerDashboard() {
                     <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Student</th>
                     <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
                     <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Submitted</th>
-                    <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                    <th className="p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -304,10 +194,8 @@ export default function OfficerDashboard() {
                       ? <tr><td colSpan={7} className="p-10 text-center text-slate-400">No complaints found</td></tr>
                       : filtered.map(c => {
                           const p = priorityMap[c.priority ?? 3] ?? priorityMap[3];
-                          const isEscalatable = c.status === 'pending' || c.status === 'in_progress';
-                          const justEscalated = escalateSuccessId === c.id;
                           return (
-                            <tr key={c.id} className={cn('hover:bg-slate-50 dark:hover:bg-slate-800/10 transition-colors group', justEscalated && 'bg-emerald-50/50 dark:bg-emerald-950/10')}>
+                            <tr key={c.id} className={cn('hover:bg-slate-50 dark:hover:bg-slate-800/10 transition-colors group')}>
                               <td className="p-4 font-mono font-bold text-xs text-slate-500">#{c.id}</td>
                               <td className="p-4"><Badge className={cn('font-bold px-2.5 py-0.5 text-[10px] uppercase tracking-wider border', p.color)}>{p.label}</Badge></td>
                               <td className="p-4 max-w-xs">
@@ -327,19 +215,12 @@ export default function OfficerDashboard() {
                               </td>
                               <td className="p-4 text-xs font-medium text-slate-500">{new Date(c.created_at).toLocaleDateString()}</td>
                               <td className="p-4">
-                                <div className="flex items-center justify-end gap-2">
-                                  {isEscalatable && (
-                                    <Button variant="ghost" size="sm" onClick={() => setEscalateTarget(c)}
-                                      className="font-bold text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 gap-1">
-                                      <ArrowUpRight size={13} /> Escalate
-                                    </Button>
-                                  )}
+                                  
                                   <Link to={`/officer/complaints/${c.id}`}>
-                                    <Button variant="ghost" size="sm" className="font-bold text-blue-650 hover:text-blue-700 hover:bg-blue-50/50 gap-1">
+                                    <Button variant="ghost" size="sm" className="font-bold text-blue-650 hover:text-blue-700 hover:bg-blue-50/50 ">
                                       Review <ChevronRight size={14} />
                                     </Button>
                                   </Link>
-                                </div>
                               </td>
                             </tr>
                           );

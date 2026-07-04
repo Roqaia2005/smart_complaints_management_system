@@ -56,10 +56,12 @@ exports.submitNewComplaint = async (data) => {
         // (up to 3 {id, name, similarity}) is available if you want to show
         // admins "did you mean..." suggestions instead of a blank category list.
       } catch (classifyErr) {
-        console.warn(
-          "Classify call failed, keeping Other category:",
-          classifyErr.message,
-        );
+        console.warn("Classify call failed, keeping Other category");
+  console.warn("message:", classifyErr.message);
+  console.warn("code:", classifyErr.code);
+  console.warn("cause:", classifyErr.cause);
+  console.warn("errors:", classifyErr.errors); // AggregateError sub-errors live here
+  console.warn("PYTHON_SERVICE value:", PYTHON_SERVICE);
       }
     }
 

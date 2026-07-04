@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 import threading
@@ -30,6 +28,28 @@ class TTLCache:
         with self._lock:
             self._store[key] = (now + self.ttl_seconds, value)
         return value
+
+    def get(self, key: str) -> Optional[Any]:
+        """Look up a key without computing/storing anything on a miss.
+
+        Returns the cached value if present and not expired, otherwise None.
+        Useful when the caller wants to distinguish "cache hit" from "cache
+        miss" itself (e.g. to skip an expensive/rate-limited operation
+        entirely on a hit) rather than always being willing to compute a
+        fresh value via get_or_set().
+        """
+        now = time.monotonic()
+        with self._lock:
+            cached = self._store.get(key)
+            if cached is None:
+                return None
+            expires_at, value = cached
+            return value if expires_at > now else None
+
+    def set(self, key: str, value: Any) -> None:
+        """Directly store a precomputed value under key with this cache's TTL."""
+        with self._lock:
+            self._store[key] = (time.monotonic() + self.ttl_seconds, value)
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:

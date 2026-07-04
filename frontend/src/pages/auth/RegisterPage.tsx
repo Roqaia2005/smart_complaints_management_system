@@ -13,13 +13,22 @@ export default function RegisterPage() {
   const [error, setError]     = useState('');
   const [done, setDone]       = useState(false);
 
+  // supporting_document is initialized to null to hold a File object
   const [form, setForm] = useState({
     full_name: '', email: '', password: '', confirmPassword: '',
-    university_name: '', faculty_name: '', email_domain: '', supporting_document: '',
+    university_name: '', faculty_name: '', email_domain: '', 
+    supporting_document: null as File | null,
   });
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  // Standard input changes
+  const set = (k: Exclude<keyof typeof form, 'supporting_document'>) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // File input specific handler
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setForm((f) => ({ ...f, supporting_document: file }));
+  };
 
   // ── Step 1 validation ────────────────────────────────────────────────────
   const handleStep1 = (e: React.FormEvent) => {
@@ -41,20 +50,29 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     if (!form.university_name || !form.faculty_name || !form.email_domain) {
       setError('Please fill in all required fields.'); return;
     }
+    if (!form.supporting_document) {
+      setError('Supporting document file is required.'); return;
+    }
+
     setLoading(true);
+
+    // Create Multipart FormData payload to send file over HTTP
+    const formData = new FormData();
+    formData.append('full_name', form.full_name);
+    formData.append('email', form.email);
+    formData.append('password', form.password);
+    formData.append('university_name', form.university_name);
+    formData.append('faculty_name', form.faculty_name);
+    formData.append('email_domain', form.email_domain);
+    formData.append('supporting_document', form.supporting_document); // The actual uploaded file file
+
     try {
-      await authApi.registerAdmin({
-        full_name:           form.full_name,
-        email:               form.email,
-        password:            form.password,
-        university_name:     form.university_name,
-        faculty_name:        form.faculty_name,
-        email_domain:        form.email_domain,
-        supporting_document: form.supporting_document,
-      });
+      const res=await authApi.registerAdmin(formData);
+      console.log('Registration response:', res);
       setDone(true);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Submission failed. Please try again.');
@@ -165,11 +183,19 @@ export default function RegisterPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="doc" className="text-[0.8rem] font-medium">Supporting document URL</label>
-            <input id="doc" type="url" value={form.supporting_document} onChange={set('supporting_document')}
-              placeholder="https://drive.google.com/…" className="w-full p-2 rounded-lg" />
+            <label htmlFor="doc" className="text-[0.8rem] font-medium">
+              Supporting document <span className="text-destructive">*</span>
+            </label>
+            {/* Input type changed from URL to File */}
+            <input 
+              id="doc" 
+              type="file" 
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
+              className="w-full p-2 rounded-lg border border-input bg-background text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90" 
+            />
             <p className="text-[0.72rem] text-muted-foreground">
-              Optional — official letter or faculty decree.
+              Required — upload an official letter or faculty decree (PDF, Images).
             </p>
           </div>
 

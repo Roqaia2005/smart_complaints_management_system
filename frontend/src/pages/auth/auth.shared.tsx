@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logo from '@/assets/logo2.png';
 
 // ── Role → redirect path (used by LoginPage and route guards) ───────────
 export const ROLE_HOME: Record<string, string> = {
@@ -206,9 +207,8 @@ export function AuthCard({ children }: { children: React.ReactNode }) {
       <div className="w-full max-w-[420px] flex flex-col gap-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
         {/* Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-base shrink-0">
-            🎓
-          </div>
+                        <img src={logo} alt="UniResolve" className="w-12" />
+
           <div>
             <p className="text-sm font-semibold text-foreground leading-none tracking-tight">UniResolve</p>
             <p className="text-[0.68rem] text-muted-foreground uppercase tracking-widest mt-0.5">Complaint Management</p>

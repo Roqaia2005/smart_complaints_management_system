@@ -1394,7 +1394,9 @@ def compute_resolution_quality(
        quality. ``factor = max(1 − appeal_rate/50, 0)``.
     2. **Resolution time factor** (35%): Faster resolution is better.
        ``factor = max(1 − avg_hours/sla_benchmark, 0)`` where
-       ``sla_benchmark`` defaults to 48 hours.
+       ``sla_benchmark`` is the category's own ``Category.sla_hours`` when
+       set, otherwise falls back to the global ``sla_hours_benchmark``
+       config default (48 hours).
     3. **Aging factor** (25%): Fewer old unresolved complaints is better.
        ``factor = max(1 − avg_age_days/30, 0)``.
 
@@ -1432,7 +1434,21 @@ def compute_resolution_quality(
 
     appeal_pct = float(stats_row.get("appeal_rate_pct") or 0)
     avg_res_hours = float(stats_row.get("avg_res_hours") or 0)
-    sla_benchmark = cfg.get("sla_hours_benchmark", 48)
+
+    # Prefer the category's own configured SLA (Category.sla_hours) over the
+    # single global sla_hours_benchmark fallback. Different complaint
+    # categories legitimately have different response-time commitments (e.g.
+    # a Network Outage category vs. a Facilities Request category) --
+    # judging every category against one flat 48h number understates
+    # quality for categories with a longer real SLA and overstates it for
+    # ones with a shorter one.
+    category_sla_hours = stats_row.get("sla_hours")
+    if category_sla_hours:
+        sla_benchmark = float(category_sla_hours)
+        sla_source = "category"
+    else:
+        sla_benchmark = float(cfg.get("sla_hours_benchmark", 48))
+        sla_source = "default"
 
     # Compute aging from unresolved complaints
     unresolved_df = group_df[group_df["status"].apply(is_unresolved)]
@@ -1466,9 +1482,22 @@ def compute_resolution_quality(
     else:
         level = "Poor"
 
+    # SLA-compliance read, separate from the composite quality score. The
+    # 25% grace band above the benchmark avoids flipping a category straight
+    # to "breached" the moment it's a single hour over.
+    if avg_res_hours <= sla_benchmark:
+        sla_status = "within_sla"
+    elif avg_res_hours <= sla_benchmark * 1.25:
+        sla_status = "at_risk"
+    else:
+        sla_status = "breached"
+
     return {
         "quality_score": score,
         "quality_level": level,
+        "sla_hours": sla_benchmark,
+        "sla_source": sla_source,
+        "sla_status": sla_status,
         "quality_factors": {
             "appeal_rate": {
                 "raw_value": round(appeal_pct, 1),
@@ -2198,6 +2227,7 @@ def build_category_risk_ranking(category_insights: dict[int, dict]) -> list[dict
         stats = insight["stats"]
         rca = insight["root_cause_analysis"]
         dp = insight.get("decision_priority", {})
+        resolution_q = insight.get("resolution_quality", {})
         ranking.append({
             # Legacy fields
             "category_id": cat_id,
@@ -2216,6 +2246,9 @@ def build_category_risk_ranking(category_insights: dict[int, dict]) -> list[dict
             "confidence_level": rca.get("confidence_level", "Low"),
             "decision_priority_score": dp.get("score", 0),
             "decision_priority_level": dp.get("level", "Low"),
+            "sla_hours": resolution_q.get("sla_hours"),
+            "sla_status": resolution_q.get("sla_status"),
+            "sla_source": resolution_q.get("sla_source"),
         })
 
     ranking.sort(key=lambda x: x["risk_score"], reverse=True)

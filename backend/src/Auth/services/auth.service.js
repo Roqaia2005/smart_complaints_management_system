@@ -17,6 +17,7 @@ const {
 } = require("../../../config/config");
 const { ROLES } = require("../constants/roles");
 
+
 // ==================== Constants ====================
 const OTP_COOLDOWN_SECONDS = 60;
 const MAX_OTP_ATTEMPTS = 5;
@@ -126,15 +127,19 @@ const checkCooldown = async (whereClause) => {
 // supporting_document now comes from multer (req.file.path) in the controller.
 // =========================================================================
 
-const submitAdminRequest = async ({
-  full_name,
-  email,
-  password,
-  university_name,
-  faculty_name,
-  email_domain,
-  supporting_document,
-}) => {
+const submitAdminRequest = async (data) => {
+  // 1. تفكيك البيانات القادمة من الكنترولر
+  const {
+    full_name,
+    email,
+    password,
+    university_name,
+    faculty_name,
+    email_domain,
+    supporting_document
+  } = data;
+
+  // 2. التحقق الصارم من وجود جميع البيانات
   if (
     !full_name ||
     !email ||
@@ -144,35 +149,33 @@ const submitAdminRequest = async ({
     !email_domain ||
     !supporting_document
   ) {
-    throw new Error(
-      "full_name, email, password, university_name, faculty_name, email_domain, and supporting_document are all required.",
-    );
+    throw new Error("full_name, email, password, university_name, faculty_name, email_domain, and supporting_document are all required.");
   }
 
   const normalizedEmail = email.trim().toLowerCase();
 
+  // 3. التحقق من وجود طلب معلق (Pending) بنفس الإيميل
   const existing = await AdminRegistrationRequest.findOne({
     where: { email: normalizedEmail, status: "Pending" },
   });
 
   if (existing) {
-    throw new Error(
-      "A pending request already exists for this email. Please wait for review.",
-    );
+    throw new Error("A pending request already exists for this email. Please wait for review.");
   }
 
+  // 4. التحقق من أن الدومين تم قبوله (Approved) من قبل لجهة أخرى
   const approvedDomain = await AdminRegistrationRequest.findOne({
-    where: { email_domain, status: "Approved" },
+    where: { email_domain: email_domain, status: "Approved" },
   });
 
   if (approvedDomain) {
-    throw new Error(
-      "This faculty email domain is already registered in the system.",
-    );
+    throw new Error("This faculty email domain is already registered in the system.");
   }
 
+  // 5. تشفير كلمة المرور
   const password_hash = await bcrypt.hash(password, 10);
 
+  // 6. حفظ الطلب الجديد في قاعدة البيانات
   const request = await AdminRegistrationRequest.create({
     full_name,
     email: normalizedEmail,
@@ -180,17 +183,17 @@ const submitAdminRequest = async ({
     university_name,
     faculty_name,
     email_domain,
-    supporting_document,
+    supporting_document, // مسار الملف المخزن (String)
     status: "Pending",
   });
 
   return {
     success: true,
-    message:
-      "Registration request submitted. You will be notified once reviewed.",
+    message: "Registration request submitted. You will be notified once reviewed.",
     request_id: request.id,
   };
 };
+
 
 // =========================================================================
 // SUPER ADMIN: review pending admin requests

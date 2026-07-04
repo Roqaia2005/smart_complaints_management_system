@@ -68,7 +68,8 @@ interface Department {
   name: string;
   total: number;
   resolved: number;
-  avg_hours: number;
+  resolved_within_deadline: number;
+  resolved_after_deadline: number;
 }
 
 interface HeatmapItem {
@@ -649,12 +650,12 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* ── Row 3: Department Performance (total vs resolved + avg hours) ─── */}
+      {/* ── Row 3: Department Performance (total vs resolved, split by SLA) ─── */}
       <Card>
         <CardHeader>
           <CardTitle>Department Performance</CardTitle>
           <CardDescription>
-            Total vs resolved complaints and average resolution hours per
+            Total complaints vs resolved on-time and past SLA deadline, per
             department
           </CardDescription>
         </CardHeader>
@@ -692,19 +693,39 @@ export default function AnalyticsPage() {
                   }}
                   cursor={{ fill: "rgba(59,130,246,0.05)" }}
                   formatter={(value, name) => [
-                    name === "avg_hours" ? `${value ?? 0}h` : (value ?? 0),
+                    value ?? 0,
                     name === "total"
                       ? "Total"
-                      : name === "resolved"
-                        ? "Resolved"
-                        : "Avg Hours",
+                      : name === "resolved_within_deadline"
+                        ? "Resolved (On Time)"
+                        : "Resolved (Late)",
                   ]}
                 />
-                
-                <Legend formatter={(val) => val === 'total' ? 'Total' : val === 'resolved' ? 'Resolved' : 'Avg Hours Resolution time'} />
-                <Bar dataKey="total"     fill="#3b82f6" radius={[4,4,0,0]} barSize={18} />
-                <Bar dataKey="resolved"  fill="#10b981" radius={[4,4,0,0]} barSize={18} />
-                <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4,4,0,0]} barSize={18} />
+
+                <Legend
+                  formatter={(val) =>
+                    val === "total"
+                      ? "Total"
+                      : val === "resolved_within_deadline"
+                        ? "Resolved (On Time)"
+                        : "Resolved (Late)"
+                  }
+                />
+                <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                <Bar
+                  dataKey="resolved_within_deadline"
+                  stackId="resolved"
+                  fill="#10b981"
+                  radius={[0, 0, 0, 0]}
+                  barSize={18}
+                />
+                <Bar
+                  dataKey="resolved_after_deadline"
+                  stackId="resolved"
+                  fill="#ef4444"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}

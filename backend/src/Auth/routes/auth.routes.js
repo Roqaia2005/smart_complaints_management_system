@@ -6,7 +6,7 @@ const authenticate = require("../../Middlewares/auth");
 const { isSuperAdmin } = require("../../Middlewares/authorize");
 
 const {
-  submitAdminRequest,
+ submitAdminRequestController,
   getPendingAdminRequestsController,
   approveAdminRequestController,
   rejectAdminRequestController,
@@ -21,9 +21,18 @@ const {
 const authRoutes = express.Router();
 
 // ==================== Multer config for admin registration document ====================
+const fs = require("fs"); // تأكد من استدعاء الـ fs في أول ملف الـ routes
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/documents/");
+    const dir = "uploads/documents/";
+    
+    // السطرين دول هيعملوا الفولدرات تلقائي لو مش موجودة عندك في المشروع
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    cb(null, dir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -54,7 +63,7 @@ const upload = multer({
 authRoutes.post(
   "/admin/register",
   upload.single("supporting_document"),
-  submitAdminRequest,
+submitAdminRequestController
 );
 
 // ==================== SUPER ADMIN: review pending admin requests (protected) ====================
