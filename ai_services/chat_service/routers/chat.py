@@ -107,10 +107,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
             complaint_ready=False, collected_data=None
         )
 
-    # CRITICAL: fetch history before saving anything this turn.
-    # history must contain only previous turns.
-    # The current message is passed separately to chat_with_groq
-    # and appended there — it must never appear in history too.
+    # ── Fetch history BEFORE saving anything this turn ──────────────────
     history = await get_history(db, body.session_id)
     state   = session["state"]
 
@@ -120,7 +117,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     else:
         language = session["language"]
 
-    # Offensive check — save user message then return immediately
+    # ── Offensive check ──────────────────────────────────────────────────
     if _is_offensive(body.message):
         warnings_so_far = await _get_offensive_count(db, body.session_id)
         new_count       = warnings_so_far + 1
@@ -140,7 +137,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         await save_message(db, body.session_id, "assistant", warning)
         return MessageResponse(reply=warning, complaint_ready=False, complaint_id=None, collected_data=state)
 
-    # Suggestion accept/decline
+    # ── Suggestion accept/decline ────────────────────────────────────────
     if state.get("suggestion_offered"):
         if _is_acceptance(body.message, language):
             await save_message(db, body.session_id, "user", body.message)
@@ -153,27 +150,38 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         else:
             state["suggestion_offered"] = False
 
-    categories  = await get_categories_with_keywords(db)
+    # ── Faculty ID first — everything scoped to this faculty ─────────────
+    # Must be fetched before categories, regulations, and duplicate checks
+    faculty_id = await get_student_faculty_id(db, body.user_id)
+
+    # ── Categories filtered to student's faculty only ────────────────────
+    categories  = await get_categories_with_keywords(db, faculty_id)
     search_text = f"{state.get('problem_summary') or ''} {body.message}".strip()
 
-    # Hybrid classification — English only, Arabic deferred to LLM
+    # ── Hybrid classifier (English only, Arabic deferred to LLM) ────────
     if not state.get("category_id"):
         try:
             classification = await classify_complaint(body.message, categories)
             if classification:
                 state["category_id"]   = classification["category_id"]
                 state["category_name"] = classification["category_name"]
-                logger.info(f"Category pre-assigned via {classification['method']}: {classification['category_name']}")
+                logger.info(
+                    f"Category pre-assigned via {classification['method']}: "
+                    f"{classification['category_name']}"
+                )
         except Exception as e:
             logger.warning(f"Classification failed, LLM will decide: {e}")
 
     guessed_cat = state.get("category_id") or next(
-        (c["id"] for c in categories if any(k.lower() in body.message.lower() for k in c["keywords"])),
+        (c["id"] for c in categories
+         if any(k.lower() in body.message.lower() for k in c["keywords"])),
         None,
     )
+
+    # ── Solution suggestions — same category, any student ────────────────
     suggestions = await suggest_solutions(guessed_cat, search_text) if guessed_cat else []
 
-    faculty_id  = await get_student_faculty_id(db, body.user_id)
+    # ── Regulation retrieval — scoped to this faculty ────────────────────
     regulations = []
     if faculty_id:
         try:
@@ -181,24 +189,21 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         except Exception as e:
             logger.warning(f"Regulation retrieval failed: {e}")
 
-    student_info = await get_student_info(db, body.user_id)
-    force_close  = state.get("questions_asked", 0) >= 3
+    student_info  = await get_student_info(db, body.user_id)
+    force_close   = state.get("questions_asked", 0) >= 3
 
     system_prompt = build_system_prompt(
         categories, language, suggestions, state, regulations, student_info,
         force_close=force_close,
     )
 
-    # Call LLM FIRST with clean history (does not contain current message yet)
-    # Then save user message AFTER LLM responds
-    # This is the fix for the echo bug
+    # ── Call LLM with clean history, save user message after ─────────────
     result = chat_with_groq(system_prompt, history, body.message, language)
     reply  = result.get("reply", "")
 
-    # Now save user message — after LLM has already responded
     await save_message(db, body.session_id, "user", body.message)
 
-    # Update state from LLM response
+    # ── Merge LLM state updates ──────────────────────────────────────────
     if not state.get("category_id") and result.get("category_id"):
         state["category_id"]   = result["category_id"]
         state["category_name"] = result["category_name"]
@@ -224,8 +229,11 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     if not ready:
         return MessageResponse(reply=reply, complaint_ready=False, collected_data=state)
 
+    # ── Duplicate check — same student, same category, still open ────────
     problem_text = _build_problem_text(state["problem_summary"], state["details"])
-    similar = await find_similar_open_complaint(db, body.user_id, state["category_id"], problem_text)
+    similar = await find_similar_open_complaint(
+        db, body.user_id, state["category_id"], problem_text
+    )
 
     if similar:
         await close_session(db, body.session_id)
@@ -239,6 +247,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
                    "لديك بالفعل شكوى مشابهة قيد المعالجة. لا داعي لتقديم شكوى جديدة.")
         return MessageResponse(reply=msg, complaint_ready=False, complaint_id=similar["complaint_id"], collected_data=None)
 
+    # ── Submit complaint ─────────────────────────────────────────────────
     priority   = assign_priority(state["category_name"], state["problem_summary"], state["details"], language)
     officer_id = await get_assigned_officer(db, state["category_id"])
     sla_hours  = await get_sla_hours(db, state["category_id"])
