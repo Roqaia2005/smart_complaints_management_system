@@ -127,25 +127,7 @@ export default function InsightsPage() {
           )}
         </Card>
 
-        <Card className="p-5 lg:col-span-2">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Recent admin activity</h3>
-          {recentLogs.length === 0 ? (
-            <EmptyState title="No recent activity" />
-          ) : (
-            <ul className="space-y-2.5">
-              {recentLogs.map((log, i) => (
-                <li key={i} className="flex items-center justify-between text-sm border-b border-border last:border-0 pb-2.5 last:pb-0">
-                  <span className="text-foreground">
-                    {log.user_name} <span className="text-muted-foreground">{log.action}d</span> {log.entity_type}
-                  </span>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(log.created_at).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+     
       </div>
     </div>
   );

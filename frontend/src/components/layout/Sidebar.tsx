@@ -48,7 +48,6 @@ const navItems: NavItem[] = [
   { label: 'Insights',        icon: BarChart3,       path: '/admin/insights',          roles: ['admin']       },
   { label: 'Regulations',     icon: FileSearch,      path: '/admin/regulations',       roles: ['admin']       },
   { label: 'Priority Rules',  icon: Lock,            path: '/admin/priority-rules',    roles: ['admin']       },
-  { label: 'Audit Logs',      icon: FileSearch,      path: '/admin/audit-logs',        roles: ['admin']       },
   { label: 'Uncategorized',   icon: FolderInput,     path: '/admin/uncategorized',     roles: ['admin']       },
   { label: 'Offensive Logs',  icon: ShieldAlert,     path: '/admin/offensive-messages',roles: ['admin']       },
   // Super Admin
