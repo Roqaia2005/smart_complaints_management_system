@@ -170,12 +170,51 @@ exports.patchCategory = async (req, res) => {
   }
 };
 
-exports.deleteCategory = async (req, res) => {
+
+// ==================== CONTROLLER: DELETE CATEGORY ====================
+exports.deleteCategoryController = async (req, res) => {
   try {
-    await adminService.softDeleteCategory(req.params.id);
-    return res.status(200).json({ success: true });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    const { id } = req.params; // أخذ الـ id من الـ URL
+
+    const result = await adminService.deleteCategory(id);
+
+    // التحقق إذا كان القسم موجود وتم حذفه فعلياً
+    if (result === 0) {
+      return res.status(404).json({ success: false, error: "Category not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Category has been permanently deleted from the database."
+    });
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// ==================== CONTROLLER: DELETE USER ====================
+exports.deleteUserController = async (req, res) => {
+  try {
+    const { id } = req.params; // أخذ الـ id الخاص بالمستخدم المراد حذفه من الـ URL
+    
+    // التعديل السحري هنا: بنجيب كلية الأدمن اللي باعت الريكويست تلقائياً من التوكن بتاعه
+    // لو الميدل وير عندك بيخزنها باسم تاني غير faculty_id تأكدي منه (مثلاً facultyId)
+    const facultyId = req.user?.faculty_id || req.user?.facultyId; 
+
+    if (!facultyId) {
+      return res.status(400).json({ success: false, error: "Your admin account is not associated with any faculty." });
+    }
+
+    await adminService.deleteUser(id, facultyId);
+
+    return res.status(200).json({
+      success: true,
+      message: "User has been permanently deleted from the database."
+    });
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
@@ -207,25 +246,6 @@ exports.patchUser = async (req, res) => {
     }
 
     await adminService.updateUser(req.params.id, req.body, facultyId);
-    return res.status(200).json({ success: true });
-  } catch (err) {
-    return res.status(400).json({ success: false, error: err.message });
-  }
-};
-
-exports.deleteUser = async (req, res) => {
-  try {
-    const facultyId = getFacultyId(req);
-    const adminId = req.user?.id;
-
-    if (Number(req.params.id) === Number(adminId)) {
-      return res.status(400).json({
-        success: false,
-        error: "You cannot delete your own admin account.",
-      });
-    }
-
-    await adminService.softDeleteUser(req.params.id, facultyId);
     return res.status(200).json({ success: true });
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });

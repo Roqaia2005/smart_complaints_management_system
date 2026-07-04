@@ -7,7 +7,8 @@ const {
     getRecommendationsService,
     updateRecommendationStatusService,
     reportsService,
-    topIssuesService
+    topIssuesService,
+    getManagerCategoriesWithPriorityService
 } = require('../services/manager.service');
 
 // =========================================================
@@ -123,4 +124,29 @@ exports.topIssuesController = async (req, res) => {
             error: error.message
         });
     }
+};
+
+exports.getManagerCategoriesController = async (req, res) => {
+  try {
+    // جلب كلية المانجر من الـ Auth Middleware لمنع أي مانجر من رؤية كليات أخرى
+    const facultyId = req.user?.faculty_id || req.user?.facultyId;
+
+    if (!facultyId) {
+      return res.status(403).json({ 
+        success: false, 
+        error: "Access denied. Manager faculty info not found." 
+      });
+    }
+
+    const categories = await getManagerCategoriesWithPriorityService(facultyId);
+
+    return res.status(200).json({
+      success: true,
+      count: categories.length,
+      data: categories
+    });
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
 };

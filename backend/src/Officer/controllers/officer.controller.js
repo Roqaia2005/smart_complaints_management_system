@@ -8,7 +8,8 @@ const {
     getOfficerDashboardStats,
     getAllOfficersService  ,
     getAssignedCategoriesService,
-    escalateComplaintService
+    escalateComplaintService,
+    getOfficerCategoriesWithPriorityService
 } = require('../services/officer.service');
 
 // =========================================================
@@ -226,6 +227,32 @@ exports.escalateComplaintController = async (req, res) => {
 
     const data = await escalateComplaintService(id, target_officer_id, currentOfficerId);
     return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+exports.getOfficerCategoriesController = async (req, res) => {
+  try {
+    // جلب بيانات الموظف الحالي من التوكن
+    const officerId = req.user?.id;
+    const facultyId = req.user?.faculty_id || req.user?.facultyId;
+
+    if (!officerId || !facultyId) {
+      return res.status(403).json({ 
+        success: false, 
+        error: "Access denied. Officer identification failed." 
+      });
+    }
+
+    const categories = await getOfficerCategoriesWithPriorityService(officerId, facultyId);
+
+    return res.status(200).json({
+      success: true,
+      count: categories.length,
+      data: categories
+    });
 
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });

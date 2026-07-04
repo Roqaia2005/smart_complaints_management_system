@@ -2,28 +2,45 @@ const authService = require("../services/auth.service");
 
 // ADMIN REGISTRATION REQUEST (multer puts the uploaded file on req.file)
 
-const submitAdminRequest = async (req, res) => {
-  try {
-    const requestData = {
-      ...req.body,
-      supporting_document: req.file ? req.file.path : null,
-    };
+const fs = require('fs');
 
-    if (!requestData.supporting_document) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Supporting document file is required.",
-        });
+// ده الـ Controller الجديد اللي هتحطه في ملف الكنترولر وتعمله export
+
+const submitAdminRequestController = async (req, res) => {
+  try {
+    // 1. التأكد إن الميدل وير بتاع multer لقط الملف وسيفه فعلاً
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "supporting_document (PDF or Image) is required." });
     }
 
-    const result = await authService.submitAdminRequest(requestData);
+    // 2. تفكيك البيانات النصية ومسار الملف من الـ req
+    const { full_name, email, password, university_name, faculty_name, email_domain } = req.body;
+    const supporting_document = req.file.path; // مسار الملف اللي multer سيفه
+
+    // 3. استدعاء الـ Service وتمرير الـ Object لها
+    const result = await authService. submitAdminRequest({
+      full_name,
+      email,
+      password,
+      university_name,
+      faculty_name,
+      email_domain,
+      supporting_document
+    });
+
+    // 4. إرجاع النتيجة بنجاح
     return res.status(201).json(result);
+
   } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
+    // 5. حماية وتأمين: لو حصل أي خطأ، بنمسح الملف فوراً عشان السيرفر ما يتمليش ملفات ملهاش لازمة
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    // إرجاع رسالة الخطأ للبوست مان أو الفرونت إند
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
+
 
 // SUPER ADMIN: review pending admin requests
 
@@ -181,7 +198,7 @@ const login = async (req, res) => {
 };
 
 module.exports = {
-  submitAdminRequest,
+  submitAdminRequestController,
   getPendingAdminRequestsController,
   approveAdminRequestController,
   rejectAdminRequestController,

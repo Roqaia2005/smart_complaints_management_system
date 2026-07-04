@@ -475,7 +475,34 @@
 						"description": "Retrieves the most recurring and critical issues. The category_id is optional."
 					},
 					"response": []
-				}
+				},
+			{
+  "name": "Get Categories Ordered by Priority (Data Isolation)",
+  "request": {
+    "method": "GET",
+    "header": [
+      {
+        "key": "Authorization",
+        "value": "Bearer {{manager_token}}",
+        "type": "text"
+      }
+    ],
+    "url": {
+      "raw": "{{base_url}}/api/manager/categories/by-priority",
+      "host": [
+        "{{base_url}}"
+      ],
+      "path": [
+        "api",
+        "manager",
+        "categories",
+        "by-priority"
+      ]
+    },
+    "description": "يجلب جميع الأقسام الخاصة بكلية المانجر الحالي فقط (Data Isolation) مرتبة حسب درجة الأولوية تنازلياً/تصاعدياً."
+  },
+  "response": []
+}
 			]
 		},
 		{

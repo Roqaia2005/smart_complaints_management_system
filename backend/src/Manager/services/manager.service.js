@@ -6,6 +6,7 @@ const {
     Category,
     Appeal,
     User,
+    PriorityRules,
     sequelize 
 } = db;
 
@@ -359,3 +360,36 @@ function relativeCount(val) {
     const parsed = parseInt(val, 10);
     return isNaN(parsed) ? 0 : parsed;
 }
+exports.getManagerCategoriesWithPriorityService = async (facultyId) => {
+  const categories = await Category.findAll({
+    where: { 
+      faculty_id: Number(facultyId) 
+    },
+    attributes: ["id", "faculty_id", "name", "description", "sla_hours", "is_active", "is_other"],
+    include: [
+      {
+        model: PriorityRules,
+        attributes: ["priority_level"], 
+        required: false 
+      }
+    ],
+    order: [
+      [PriorityRules, "priority_level", "ASC"], 
+      ["name", "ASC"]
+    ]
+  });
+
+  // حركة سحرية عشان ننضف الـ Response ويكون الـ priority_level حقل مباشر
+  // ولو ملوش أولوية في الداتابيز، هيديله null أو قيمة افتراضية بدل ما يرجع مصفوفة فاضية
+  return categories.map(cat => {
+    const categoryJson = cat.toJSON();
+    // بناخد أول عنصر من الـ PriorityRules لو موجود
+    const priorityRule = categoryJson.PriorityRules && categoryJson.PriorityRules[0];
+    
+    // بنضيف الحقل مباشرة ونمسح المصفوفة الزيادة
+    categoryJson.priority_level = priorityRule ? priorityRule.priority_level : null;
+    delete categoryJson.PriorityRules;
+    
+    return categoryJson;
+  });
+};

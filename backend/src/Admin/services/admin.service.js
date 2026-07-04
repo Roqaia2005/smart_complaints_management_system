@@ -233,8 +233,9 @@ exports.updateCategory = async (id, data) => {
   return { success: true };
 };
 
-exports.softDeleteCategory = async (id) => {
-  const result = await Category.update({ is_active: false }, { where: { id } });
+exports.deleteCategory = async (id) => {
+  // استخدام destroy للحذف الكامل والنهائي من الداتابيز
+  const result = await Category.destroy({ where: { id } });
 
   try {
     await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
@@ -242,7 +243,7 @@ exports.softDeleteCategory = async (id) => {
     console.error(`Python sync failed for category delete ${id}:`, err.message);
   }
 
-  return result;
+  return result; // سيرجع عدد السجلات المحذوفة (غالباً 1 لو نجح)
 };
 
 // =========================================================================
@@ -415,14 +416,21 @@ exports.importUsersCsvService = async (filePath, facultyId, targetRole) => {
   );
   const seenNumbersInFile = new Set();
 
-  let validCategoryIds = new Set();
+  // ==================== CHANGED ====================
+  // Instead of a Set of valid numeric IDs, we now build a name -> id map
+  // so the CSV can carry human-readable category names (case-insensitive)
+  // instead of raw database IDs.
+  let categoryNameToId = new Map();
   if (targetRole === ROLES.OFFICER) {
     const categories = await Category.findAll({
       where: { faculty_id: numericFacultyId },
-      attributes: ["id"],
+      attributes: ["id", "name"],
     });
-    validCategoryIds = new Set(categories.map((c) => c.id));
+    categories.forEach((c) => {
+      categoryNameToId.set(c.name.trim().toLowerCase(), c.id);
+    });
   }
+  // ===================================================
 
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
@@ -471,24 +479,41 @@ exports.importUsersCsvService = async (filePath, facultyId, targetRole) => {
         ? parseInt(row.academic_year, 10)
         : null;
     } else if (targetRole === ROLES.OFFICER) {
-      const rawCategoryIds = (row.category_ids || "").trim();
+      // ==================== CHANGED ====================
+      // category_ids column now holds semicolon-separated category
+      // NAMES (e.g. "Course Registration;Grades & Exams") instead of
+      // raw numeric IDs. We resolve each name to its DB id here.
+      const rawCategoryNames = (row.category_ids || "").trim();
       cleanRowData.officer_title = (row.officer_title || "").trim() || null;
 
-      if (!rawCategoryIds) {
+      if (!rawCategoryNames) {
         errors.push("missing category authorization bindings");
       } else {
-        const parsedIds = rawCategoryIds
+        const names = rawCategoryNames
           .split(";")
-          .map((c) => parseInt(c.trim(), 10))
-          .filter((n) => !isNaN(n));
-        const invalidIds = parsedIds.filter((id) => !validCategoryIds.has(id));
-        if (invalidIds.length > 0) {
+          .map((n) => n.trim())
+          .filter((n) => n.length > 0);
+
+        const resolvedIds = [];
+        const invalidNames = [];
+
+        names.forEach((name) => {
+          const id = categoryNameToId.get(name.toLowerCase());
+          if (id === undefined) {
+            invalidNames.push(name);
+          } else {
+            resolvedIds.push(id);
+          }
+        });
+
+        if (invalidNames.length > 0) {
           errors.push(
-            `unauthorized or out-of-bounds department categories: ${invalidIds.join(", ")}`,
+            `unrecognized category name(s) for this faculty: ${invalidNames.join(", ")}`,
           );
         }
-        cleanRowData.category_ids = parsedIds;
+        cleanRowData.category_ids = resolvedIds;
       }
+      // ===================================================
     } else if (targetRole === ROLES.MANAGER) {
       const manager_title = (row.manager_title || "").trim();
       if (!manager_title)
@@ -658,7 +683,8 @@ exports.updateUser = async (id, data, facultyId) => {
   return User.update(data, { where: { id } });
 };
 
-exports.softDeleteUser = async (id, facultyId) => {
+exports.deleteUser = async (id, facultyId) => {
+  // 1. البحث عن اليوزر في الجدول العام للتأكد من وجوده وصلاحية الكلية
   const user = await User.findOne({
     where: { id, faculty_id: Number(facultyId) },
   });
@@ -667,8 +693,17 @@ exports.softDeleteUser = async (id, facultyId) => {
     throw new Error("User not found or does not belong to your faculty.");
   }
 
-  return User.update({ is_active: false }, { where: { id } });
+  // 2. لو اليوزر ده طالب (student)، نروح نمسح بياناته من جدول الـ Student الأول
+  // تأكدي من اسم موديل الـ Student عندك (مثلاً Student أو StudentProfile)
+  if (user.role === 'student' && models.Student) {
+    // الميزه هنا إننا بنمسحه بالإيميل أو لو عندك foreignKey مربوط بـ user_id
+    await models.Student.destroy({ where: { email: user.email } }); 
+  }
+
+  // 3. حذف المستخدم نهائياً من الجدول العام للمستخدمين
+  return await User.destroy({ where: { id } });
 };
+
 
 exports.setOfficerManagerFlag = async (
   officerId,
