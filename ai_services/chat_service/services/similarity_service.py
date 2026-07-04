@@ -89,22 +89,25 @@ Answer with ONLY one word: SAME or DIFFERENT."""
 def _is_resolution_transferable(
     problem_text: str, candidate_problem: str, resolution: str
 ) -> bool:
-    """
-    LLM decides whether a past resolution would genuinely help a NEW student.
-    Filters out personal fixes (grade changes, one-time exceptions,
-    disciplinary actions, anything that only worked for the original student).
-    Conservative default: if LLM fails, suppress suggestion — better to
-    not show a useless suggestion than show a misleading one.
-    """
     prompt = f"""A new student has this complaint: "{problem_text}"
 
 A past student had a similar complaint: "{candidate_problem}"
 It was resolved with: "{resolution}"
 
-Question: Would sharing this past resolution genuinely help the NEW student
-solve their problem? Or was it a fix specific only to that old case —
-such as a personal grade change, a one-time exception, a disciplinary action
-against a specific person, or anything that does not generalize to other students?
+Question: Would sharing this past resolution help the NEW student?
+
+Answer YES if the resolution is something any student could use:
+- A new link, URL, or address
+- A fixed process or procedure
+- A repaired facility or equipment
+- A policy clarification
+- Any information that applies to all students equally
+
+Answer NO only if the resolution is personal to one student:
+- A grade change for that specific student
+- A personal exception or waiver
+- A disciplinary action against a specific person
+- A one-time override that cannot be repeated
 
 Answer with ONLY one word: YES or NO."""
 
