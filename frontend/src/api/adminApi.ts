@@ -12,8 +12,13 @@
 
 import axios from "axios";
 
-const API_ROOT = import.meta.env.VITE_API_URL|| "/api";
+const API_ROOT = (import.meta as any).env.VITE_API_URL|| "/api";
 const ADMIN_BASE = `${API_ROOT}/admin`;
+
+// The category-description suggester runs on a separate Python (FastAPI)
+// service, not the Node admin backend — adjust this to wherever that's
+// actually deployed.
+const PYTHON_SERVICE_URL = (import.meta as any).env.VITE_PYTHON_SERVICE_URL || "http://localhost:8000";
 
 export const apiClient = axios.create({
   baseURL: API_ROOT,
@@ -178,6 +183,35 @@ export async function addCategory(payload: {
   officer_ids?: number[];
 }): Promise<{ success: boolean; category_id: number }> {
   const res = await apiClient.post(`${ADMIN_BASE}/categories`, payload);
+  return res.data;
+}
+
+// POST {PYTHON_SERVICE_URL}/api/admin/categories/suggest-description
+// Called while an admin is creating a category — returns a bilingual
+// description + keyword suggestions the admin can accept or edit.
+export interface CategoryDescriptionSuggestion {
+  description_en: string;
+  description_ar: string;
+  keywords_en: string[];
+  keywords_ar: string[];
+  combined_description: string;
+  combined_keywords: string;
+}
+
+export interface SuggestCategoryDescriptionResult {
+  success: boolean;
+  suggestion?: CategoryDescriptionSuggestion;
+  error?: string;
+}
+
+export async function suggestCategoryDescription(
+  name: string,
+  existing_description?: string
+): Promise<SuggestCategoryDescriptionResult> {
+  const res = await axios.post<SuggestCategoryDescriptionResult>(
+    `${PYTHON_SERVICE_URL}/api/admin/categories/suggest-description`,
+    { name, existing_description }
+  );
   return res.data;
 }
 
@@ -372,14 +406,46 @@ export interface UncategorizedComplaint {
   createdAt: string;
   student_name: string;
   student_email: string;
+  // Added by the backend's joined query — may be null if the student
+  // record has no department/year set, or if the join didn't resolve.
+  student_department?: string | null;
+  student_year?: number | null;
 }
 
+// Backend now wraps the array with { success, count, complaints }.
 export async function getUncategorizedComplaints(): Promise<UncategorizedComplaint[]> {
-  const res = await apiClient.get<{ complaints: UncategorizedComplaint[] }>(`${ADMIN_BASE}/uncategorized-complaints`);
+  const res = await apiClient.get<{ success: boolean; count: number; complaints: UncategorizedComplaint[] }>(
+    `${ADMIN_BASE}/uncategorized-complaints`
+  );
   return res.data.complaints;
 }
 
 export async function reassignComplaint(id: number, category_id: number): Promise<{ success: boolean; new_category_name: string }> {
   const res = await apiClient.patch(`${ADMIN_BASE}/complaints/${id}/reassign`, { category_id });
+  return res.data;
+}
+
+// Payload for POST /admin/complaints/:id/create-category — creates a brand
+// new category (in the admin's faculty) and immediately reassigns the
+// given complaint to it. `keywords` is a comma-separated string, same
+// convention as addCategory above.
+export interface CreateCategoryAndReassignPayload {
+  name: string;
+  description?: string;
+  sla_hours?: number;
+  keywords?: string;
+}
+
+export interface CreateCategoryAndReassignResult {
+  success: boolean;
+  new_category_id: number;
+  new_category_name: string;
+}
+
+export async function createCategoryAndReassign(
+  complaintId: number,
+  payload: CreateCategoryAndReassignPayload
+): Promise<CreateCategoryAndReassignResult> {
+  const res = await apiClient.post(`${ADMIN_BASE}/complaints/${complaintId}/create-category`, payload);
   return res.data;
 }

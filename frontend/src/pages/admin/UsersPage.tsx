@@ -35,6 +35,7 @@ import {
   LoadingState,
   Banner,
 } from "./adminUi";
+import { toast } from "react-toastify";
 
 const ROLE_LABEL: Record<UserRole, string> = {
   student: "Student",
@@ -155,6 +156,7 @@ export default function UsersPage() {
       resetCreateForm();
       await load();
     } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to create user."));
       setError(getApiErrorMessage(err, "Failed to create user."));
     } finally {
       setSaving(false);
@@ -176,7 +178,7 @@ export default function UsersPage() {
     setSaving(true);
     setError(null);
     try {
-      await updateUser(editingUser.id, editForm);
+      await updateUser(editingUser.id, editForm as any);
       setSuccess(`Updated ${editingUser.full_name}.`);
       setEditingUser(null);
       await load();

@@ -238,12 +238,7 @@ exports.deleteCategory = async (id) => {
   // استخدام destroy للحذف الكامل والنهائي من الداتابيز
   const result = await Category.destroy({ where: { id } });
 
-  try {
-    await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
-  } catch (err) {
-    console.error(`Python sync failed for category delete ${id}:`, err.message);
-  }
-
+  
   return result; // سيرجع عدد السجلات المحذوفة (غالباً 1 لو نجح)
 };
 
@@ -1055,14 +1050,7 @@ exports.createCategoryAndReassign = async (complaintId, categoryData, facultyId)
 
     await t.commit();
 
-    // Notify Python service to rebuild category embeddings with the new category
-    try {
-      const axios = require("axios");
-      const { pythonService } = require("../../../config/config");
-      await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
-    } catch (e) {
-      console.warn("Python category refresh failed:", e.message);
-    }
+   
 
     return {
       success: true,
