@@ -103,9 +103,14 @@ adminRoutes.get("/offensive-messages", adminController.getOffensiveMessages);
 
 
 
-adminRoutes.get('/uncategorized-complaints', adminController.getUncategorizedComplaintsController);
-adminRoutes.patch('/complaints/:id/reassign', adminController.reassignComplaintController);
 
+
+
+
+
+adminRoutes.get("/uncategorized-complaints", adminController.getUncategorizedComplaintsController);
+adminRoutes.patch("/complaints/:id/reassign", adminController.reassignComplaintController);
+adminRoutes.post("/complaints/:id/create-category", adminController.createCategoryAndReassignController);
 module.exports = adminRoutes;
 
 

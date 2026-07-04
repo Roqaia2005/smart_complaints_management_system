@@ -13,6 +13,7 @@ const {
   Regulation,
   PriorityRules,
   AuditLog,
+  Complaint,
   CategoryKeywords,
   CategoryOfficer,
   sequelize,
@@ -938,4 +939,103 @@ exports.reassignComplaint = async (complaintId, newCategoryId, facultyId) => {
   await complaint.update({ category_id: newCategoryId });
 
   return { success: true, new_category_name: category.name };
+};
+
+
+exports.getUncategorizedComplaints = async (facultyId) => {
+  const otherCategory = await Category.findOne({
+    where: { faculty_id: Number(facultyId), is_other: true },
+  });
+  if (!otherCategory) return [];
+
+  return sequelize.query(
+    `SELECT
+       c.id,
+       c.problem,
+       c.ai_summary,
+       c.priority,
+       c.status,
+       c."createdAt",
+       u.full_name   AS student_name,
+       u.email       AS student_email,
+       s.department  AS student_department,
+       s.academic_year AS student_year
+     FROM "Complaints" c
+     JOIN users u  ON u.id = c.user_id
+     LEFT JOIN "Students" s ON s.id = u.student_id
+     WHERE c.category_id = :categoryId
+     ORDER BY c."createdAt" DESC`,
+    {
+      replacements: { categoryId: otherCategory.id },
+      type: sequelize.QueryTypes.SELECT,
+    }
+  );
+};
+
+// Reassigns a complaint from Other to an existing category chosen by admin
+exports.reassignComplaint = async (complaintId, newCategoryId, facultyId) => {
+  const category = await Category.findOne({
+    where: { id: newCategoryId, faculty_id: Number(facultyId), is_active: true },
+  });
+  if (!category) throw new Error("Target category not found or does not belong to your faculty.");
+  if (category.is_other) throw new Error("Cannot reassign to the Other category.");
+
+  const complaint = await Complaint.findByPk(complaintId);
+  if (!complaint) throw new Error("Complaint not found.");
+
+  await complaint.update({ category_id: newCategoryId });
+  return { success: true, new_category_name: category.name };
+};
+
+// Creates a new category AND immediately reassigns the complaint to it
+// Used when admin sees an uncategorized complaint and decides to create
+// a brand new category for this type of issue
+exports.createCategoryAndReassign = async (complaintId, categoryData, facultyId) => {
+  const numericFacultyId = Number(facultyId);
+  const t = await sequelize.transaction();
+
+  try {
+    const newCategory = await Category.create({
+      name: categoryData.name,
+      description: categoryData.description || null,
+      sla_hours: categoryData.sla_hours || 48,
+      faculty_id: numericFacultyId,
+      is_active: true,
+      is_other: false,
+    }, { transaction: t });
+
+    if (categoryData.keywords && CategoryKeywords) {
+      const kws = categoryData.keywords.split(",").map(k => k.trim()).filter(Boolean);
+      for (const kw of kws) {
+        await CategoryKeywords.create({
+          category_id: newCategory.id,
+          keyword: kw,
+        }, { transaction: t });
+      }
+    }
+
+    const complaint = await Complaint.findByPk(complaintId, { transaction: t });
+    if (!complaint) throw new Error("Complaint not found.");
+    await complaint.update({ category_id: newCategory.id }, { transaction: t });
+
+    await t.commit();
+
+    // Notify Python service to rebuild category embeddings with the new category
+    try {
+      const axios = require("axios");
+      const { pythonService } = require("../../../config/config");
+      await axios.post(`${pythonService.baseUrl}/api/refresh-categories`);
+    } catch (e) {
+      console.warn("Python category refresh failed:", e.message);
+    }
+
+    return {
+      success: true,
+      new_category_id: newCategory.id,
+      new_category_name: newCategory.name,
+    };
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 };

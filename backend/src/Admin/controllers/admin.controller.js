@@ -371,13 +371,16 @@ exports.getOffensiveMessages = async (req, res) => {
 };
 
 
-
 exports.getUncategorizedComplaintsController = async (req, res) => {
   try {
     const facultyId = getFacultyId(req);
-    if (!facultyId) return res.status(400).json({ success: false, error: 'faculty_id is required' });
+    if (!facultyId) return res.status(400).json({ success: false, error: "faculty_id is required" });
     const complaints = await adminService.getUncategorizedComplaints(facultyId);
-    return res.status(200).json({ complaints });
+    return res.status(200).json({
+      success: true,
+      count: complaints.length,
+      complaints,
+    });
   } catch (e) {
     return res.status(500).json({ success: false, error: e.message });
   }
@@ -386,12 +389,26 @@ exports.getUncategorizedComplaintsController = async (req, res) => {
 exports.reassignComplaintController = async (req, res) => {
   try {
     const facultyId = getFacultyId(req);
-    if (!facultyId) return res.status(400).json({ success: false, error: 'faculty_id is required' });
     const { id } = req.params;
     const { category_id } = req.body;
-    if (!category_id) return res.status(400).json({ success: false, error: 'category_id is required' });
+    if (!category_id) return res.status(400).json({ success: false, error: "category_id is required" });
     const result = await adminService.reassignComplaint(id, category_id, facultyId);
     return res.status(200).json(result);
+  } catch (e) {
+    return res.status(400).json({ success: false, error: e.message });
+  }
+};
+
+exports.createCategoryAndReassignController = async (req, res) => {
+  try {
+    const facultyId = getFacultyId(req);
+    const { id } = req.params;
+    const { name, description, sla_hours, keywords } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: "name is required" });
+    const result = await adminService.createCategoryAndReassign(
+      id, { name, description, sla_hours, keywords }, facultyId
+    );
+    return res.status(201).json(result);
   } catch (e) {
     return res.status(400).json({ success: false, error: e.message });
   }

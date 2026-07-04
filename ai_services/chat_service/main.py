@@ -23,13 +23,14 @@ from services.similarity_service import seed_resolved_complaints
 from services.regulation_service import rebuild_chroma_from_db
 import os
 import warnings
-
+from routers.suggest import router as suggest_router
 
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
 
 
 app = FastAPI(title="University Complaint Chat Service")
+app.include_router(suggest_router)
 
 app.add_middleware(
     CORSMiddleware,
