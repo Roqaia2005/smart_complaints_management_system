@@ -248,13 +248,25 @@ exports.departmentPerformanceService = async (managerId, filters = {}) => {
 // =========================================================
 // 3. Heatmap Data (حقن الـ Isolation داخل الـ Switch Case)
 // =========================================================
-exports.heatmapService = async (managerId, dimension) => {
+exports.heatmapService = async (managerId, dimension, filterCategoryIds) => {
     const allowedCategoryIds = await getManagerCategoryIds(managerId);
     if (allowedCategoryIds.length === 0) return { heatmap: [] };
 
+    // لو المدير بعت categoryIds، بناخد الـ intersection مع allowedCategoryIds
+    // عشان نضمن انه مش هيقدر يشوف كاتيجوري مش بتاعته حتى لو حاول يبعتها في الـ query
+    let effectiveCategoryIds = allowedCategoryIds;
+    if (Array.isArray(filterCategoryIds) && filterCategoryIds.length > 0) {
+        const allowedSet = new Set(allowedCategoryIds.map(String));
+        effectiveCategoryIds = filterCategoryIds
+            .map(String)
+            .filter(id => allowedSet.has(id));
+
+        if (effectiveCategoryIds.length === 0) return { heatmap: [] };
+    }
+
     let results;
-    const replacements = { allowedCategoryIds };
- 
+    const replacements = { allowedCategoryIds: effectiveCategoryIds };
+
     switch (dimension) {
         case 'category':
             results = await sequelize.query(`
@@ -266,7 +278,7 @@ exports.heatmapService = async (managerId, dimension) => {
                 ORDER BY count DESC
             `, { replacements, type: sequelize.QueryTypes.SELECT });
             break;
- 
+
         case 'location':
             results = await sequelize.query(`
                 SELECT location AS label, COUNT(id) AS count
@@ -276,7 +288,7 @@ exports.heatmapService = async (managerId, dimension) => {
                 ORDER BY count DESC
             `, { replacements, type: sequelize.QueryTypes.SELECT });
             break;
- 
+
         case 'time':
             results = await sequelize.query(`
                 SELECT TO_CHAR("createdAt", 'YYYY-MM') AS label, COUNT(id) AS count
@@ -286,7 +298,7 @@ exports.heatmapService = async (managerId, dimension) => {
                 ORDER BY label ASC
             `, { replacements, type: sequelize.QueryTypes.SELECT });
             break;
- 
+
         case 'department':
             results = await sequelize.query(`
                 SELECT s.department AS label, COUNT(comp.id) AS count
@@ -298,11 +310,11 @@ exports.heatmapService = async (managerId, dimension) => {
                 ORDER BY count DESC
             `, { replacements, type: sequelize.QueryTypes.SELECT });
             break;
- 
+
         default:
             throw new Error('Invalid dimension.');
     }
- 
+
     return {
         heatmap: results.map(row => ({
             label: row.label,

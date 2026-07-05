@@ -84,13 +84,21 @@ exports.departmentPerformanceController = async (req, res) => {
 exports.heatmapController = async (req, res) => {
     try {
         const managerId = req.user.id; // حماية لضمان عزل خريطة الكلية
-        const { dimension } = req.query;
+        const { dimension, categoryIds } = req.query;
 
         if (!dimension) {
             throw new Error('Dimension parameter is required (category, location, time, or department).');
         }
 
-        const data = await heatmapService(managerId, dimension);
+        // categoryIds ممكن تيجي كـ "1,2,3" أو كـ array (categoryIds=1&categoryIds=2)
+        let filterCategoryIds;
+        if (categoryIds) {
+            filterCategoryIds = Array.isArray(categoryIds)
+                ? categoryIds
+                : categoryIds.split(',').map(id => id.trim()).filter(Boolean);
+        }
+
+        const data = await heatmapService(managerId, dimension, filterCategoryIds);
         return res.status(200).json({
             success: true,
             ...data
