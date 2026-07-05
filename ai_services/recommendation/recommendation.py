@@ -60,7 +60,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from config import GROQ_MODEL
+from config import RECOMMENDATION_MODEL
+from recommendation_templates import build_template_recommendation
 from database import get_db
 from models import AiRecommendation, Category, Faculty, User
 from translation import translate_to_english
@@ -238,6 +239,35 @@ def fetch_complaints(
     return df
 
 
+# Lightweight COUNT(*) with no date window -- used only to show managers a
+# reference "lifetime total" alongside the windowed total_complaints, so the
+# windowed number (e.g. 287 in the last 120 days) never looks like missing
+# or lost data next to a bigger "total on record" figure (e.g. 905). Not
+# used for any analysis, purely a transparency figure for the dashboard.
+_LIFETIME_COUNT_SQL_BASE = """
+    SELECT COUNT(*) AS total
+    FROM "Complaints" c
+    JOIN categories cat ON c.category_id = cat.id
+    WHERE 1=1
+    {faculty_clause}
+"""
+LIFETIME_COUNT_SQL = text(_LIFETIME_COUNT_SQL_BASE.format(faculty_clause=""))
+LIFETIME_COUNT_SQL_BY_FACULTY = text(_LIFETIME_COUNT_SQL_BASE.format(faculty_clause="AND cat.faculty_id = :faculty_id"))
+
+
+def fetch_lifetime_complaint_count(db: Session, faculty_id: Optional[int] = None) -> int:
+    """Total complaints ever recorded (no date window), optionally scoped
+    to a faculty. See module comment above -- reference figure only."""
+    params: dict = {}
+    if faculty_id is not None:
+        params["faculty_id"] = faculty_id
+        result = db.execute(LIFETIME_COUNT_SQL_BY_FACULTY, params)
+    else:
+        result = db.execute(LIFETIME_COUNT_SQL, params)
+    row = result.fetchone()
+    return int(row[0]) if row else 0
+
+
 # ─────────────────────────────────────────────
 # Step 2: Statistical analysis
 # ─────────────────────────────────────────────
@@ -390,7 +420,7 @@ Respond ONLY with this JSON, no extra text:
 def call_groq(prompt: str) -> dict:
     client   = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
-        model=GROQ_MODEL,
+        model=RECOMMENDATION_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": prompt},
@@ -528,8 +558,22 @@ def run_recommendation_pipeline(db: Session, faculty_id: int) -> list:
             groq_result = apply_analytical_root_cause(groq_result, rca)
             logger.info("Groq responded for category=%s (risk=%s)", cat_id, risk.get("risk_level"))
         except Exception as exc:
-            logger.error("Groq failed for cat=%s: %s", cat_id, exc)
-            continue
+            # Don't silently drop this category. Groq failing (rate limit,
+            # timeout, malformed JSON) used to mean no recommendation was
+            # saved for it at all this run. Instead, fall back to a
+            # deterministic, non-LLM recommendation built from the same
+            # DSS analytics -- more generic wording, but still concrete and
+            # data-grounded, so managers always get something actionable.
+            logger.error(
+                "Groq failed for cat=%s: %s -- using template fallback instead of skipping.",
+                cat_id, exc,
+            )
+            groq_result = build_template_recommendation(row.to_dict(), insight, keywords)
+            groq_result = apply_analytical_root_cause(groq_result, rca)
+            groq_result["pattern_detected"] += (
+                " (Auto-generated summary — the AI writing assistant was unavailable "
+                "when this recommendation was created.)"
+            )
 
         # Save recommendation with user's faculty_id
         rec = save_recommendation(db, cat_id, faculty_id, location, row.to_dict(), groq_result, keywords)

@@ -35,6 +35,12 @@ export interface DashboardMetrics {
   avg_appeal_rate_pct: number;
   top_hotspot_location: string;
   generated_at: string;
+  // Transparency metadata -- total_complaints above is WINDOWED
+  // (last analysis_window_days only), not an all-time total.
+  analysis_window_days?: number;
+  total_complaints_lifetime?: number;
+  data_truncated?: boolean;
+  fetch_limit?: number;
 }
 
 export interface RiskRankingItem {
@@ -53,6 +59,10 @@ export interface RiskRankingItem {
   sla_hours?: number;
   sla_status?: 'within_sla' | 'at_risk' | 'breached';
   sla_source?: 'category' | 'default';
+  trend?: 'Increasing' | 'Stable' | 'Decreasing';
+  trend_change_pct?: number;
+  quality_score?: number;
+  quality_level?: 'Excellent' | 'Good' | 'Fair' | 'Poor';
 }
 
 export interface ExecutiveSummary {
@@ -70,6 +80,43 @@ export interface SmartAlert {
   alert_type: string;
   message: string;
   metric_value: number;
+  reason?: string;
+  recommended_action?: string;
+}
+
+export interface ResolutionQualityFactor {
+  raw_value: number;
+  factor: number;
+  weight: number;
+  contribution: number;
+}
+
+export interface ResolutionQuality {
+  quality_score: number;
+  quality_level: 'Excellent' | 'Good' | 'Fair' | 'Poor';
+  sla_hours?: number;
+  sla_status?: 'within_sla' | 'at_risk' | 'breached';
+  sla_source?: 'category' | 'default';
+  quality_factors: {
+    appeal_rate: ResolutionQualityFactor;
+    resolution_time: ResolutionQualityFactor;
+    aging_backlog: ResolutionQualityFactor;
+  };
+}
+
+export interface TemporalIntelligence {
+  weekday_weekend?: {
+    weekday_count: number;
+    weekend_count: number;
+    weekday_pct: number;
+    weekend_pct: number;
+    dominance?: string;
+  };
+  peak_day?: { day: string; count: number; share_pct: number; is_significant: boolean };
+  peak_month?: { month: string; count: number; share_pct: number; is_significant: boolean };
+  monthly_trend?: { month: string; count: number }[];
+  weekly_trend?: { day: string; count: number }[];
+  repeated_spikes?: { month: string; count: number; average: number; multiplier: number }[];
 }
 
 export interface CategoryInsight {
@@ -84,6 +131,8 @@ export interface CategoryInsight {
   findings: string[];
   confident_root_cause?: string;
   dominant_keywords: string[];
+  resolution_quality?: ResolutionQuality;
+  temporal_intelligence?: TemporalIntelligence;
 }
 
 export interface DssBundle {
@@ -142,37 +191,47 @@ export const recommendationService = {
     return response.data;
   },
 
-  async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const response = await api.get<DashboardMetrics>('/api/dss/dashboard');
+  async getDashboardMetrics(forceRefresh = false): Promise<DashboardMetrics> {
+    const response = await api.get<DashboardMetrics>('/api/dss/dashboard', {
+      params: forceRefresh ? { refresh: true } : undefined,
+    });
     return response.data;
   },
 
-  async getRiskRanking(): Promise<RiskRankingItem[]> {
-    const response = await api.get<RiskRankingItem[]>('/api/dss/risk-ranking');
+  async getRiskRanking(forceRefresh = false): Promise<RiskRankingItem[]> {
+    const response = await api.get<RiskRankingItem[]>('/api/dss/risk-ranking', {
+      params: forceRefresh ? { refresh: true } : undefined,
+    });
     return response.data;
   },
 
-  async getExecutiveSummary(): Promise<ExecutiveSummary> {
-    const response = await api.get<ExecutiveSummary>('/api/dss/executive-summary');
+  async getExecutiveSummary(forceRefresh = false): Promise<ExecutiveSummary> {
+    const response = await api.get<ExecutiveSummary>('/api/dss/executive-summary', {
+      params: forceRefresh ? { refresh: true } : undefined,
+    });
     return response.data;
   },
 
-  async getSmartAlerts(): Promise<SmartAlert[]> {
-    const response = await api.get<SmartAlert[]>('/api/dss/alerts');
+  async getSmartAlerts(forceRefresh = false): Promise<SmartAlert[]> {
+    const response = await api.get<SmartAlert[]>('/api/dss/alerts', {
+      params: forceRefresh ? { refresh: true } : undefined,
+    });
     return response.data;
   },
 
-  async getCategoryInsight(categoryId: number): Promise<CategoryInsight> {
-    const response = await api.get<CategoryInsight>(`/api/dss/category/${categoryId}`);
+  async getCategoryInsight(categoryId: number, forceRefresh = false): Promise<CategoryInsight> {
+    const response = await api.get<CategoryInsight>(`/api/dss/category/${categoryId}`, {
+      params: forceRefresh ? { refresh: true } : undefined,
+    });
     return response.data;
   },
 
-  async getDssBundle(): Promise<DssBundle> {
+  async getDssBundle(forceRefresh = false): Promise<DssBundle> {
     const [dashboard, riskRanking, executiveSummary, alerts] = await Promise.all([
-      this.getDashboardMetrics(),
-      this.getRiskRanking(),
-      this.getExecutiveSummary(),
-      this.getSmartAlerts(),
+      this.getDashboardMetrics(forceRefresh),
+      this.getRiskRanking(forceRefresh),
+      this.getExecutiveSummary(forceRefresh),
+      this.getSmartAlerts(forceRefresh),
     ]);
     return { dashboard, riskRanking, executiveSummary, alerts };
   },

@@ -33,10 +33,11 @@ class TTLCache:
         """Look up a key without computing/storing anything on a miss.
 
         Returns the cached value if present and not expired, otherwise None.
-        Useful when the caller wants to distinguish "cache hit" from "cache
-        miss" itself (e.g. to skip an expensive/rate-limited operation
-        entirely on a hit) rather than always being willing to compute a
-        fresh value via get_or_set().
+        Used by translation.py to check "do we already have this translated?"
+        without being willing to compute a fresh value on a miss -- the
+        caller (translate_to_english) decides what to do on a miss itself
+        (batch it up for a single Groq call), rather than get_or_set()'s
+        one-value-at-a-time compute-on-miss behavior.
         """
         now = time.monotonic()
         with self._lock:

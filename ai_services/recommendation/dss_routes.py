@@ -48,7 +48,7 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -63,7 +63,14 @@ from dss_analytics import (
     build_executive_summary,
     generate_smart_alerts,
 )
-from recommendation import compute_statistics, extract_keywords, fetch_complaints
+from recommendation import (
+    ANALYSIS_WINDOW_DAYS,
+    COMPLAINT_FETCH_LIMIT,
+    compute_statistics,
+    extract_keywords,
+    fetch_complaints,
+    fetch_lifetime_complaint_count,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dss", tags=["DSS"])
@@ -95,6 +102,10 @@ class RiskRankingItem(BaseModel):
     sla_hours: Optional[float] = None
     sla_status: Optional[str] = None
     sla_source: Optional[str] = None
+    trend: Optional[str] = None
+    trend_change_pct: Optional[float] = None
+    quality_score: Optional[int] = None
+    quality_level: Optional[str] = None
 
 
 class DashboardMetrics(BaseModel):
@@ -117,6 +128,14 @@ class DashboardMetrics(BaseModel):
     fastest_deteriorating_category: Optional[dict] = None
     avg_root_cause_confidence: Optional[float] = None
     analytics_metadata: Optional[dict] = None
+    # Transparency metadata (see _build_dss_context in this file):
+    # total_complaints above is WINDOWED (last analysis_window_days only).
+    # These let the frontend make that explicit instead of total_complaints
+    # looking like an all-time/complete figure.
+    analysis_window_days: Optional[int] = None
+    total_complaints_lifetime: Optional[int] = None
+    data_truncated: Optional[bool] = None
+    fetch_limit: Optional[int] = None
 
 
 class ExecutiveSummaryOut(BaseModel):
@@ -206,9 +225,24 @@ def _build_dss_context(db: Session, faculty_id: Optional[int]):
     if df.empty:
         return None
 
+    # Transparency metadata: fetch_complaints() already logs a warning
+    # server-side when the result hits COMPLAINT_FETCH_LIMIT exactly (a
+    # sign the true count may be higher and got silently truncated), but
+    # that warning was never visible to the manager looking at the
+    # dashboard -- just a discrepancy between what they see and what's
+    # actually in the DB, with no explanation. Surfacing it here lets the
+    # API tell the frontend "this number might be incomplete" directly.
+    data_truncated = len(df) >= COMPLAINT_FETCH_LIMIT
+    lifetime_total = fetch_lifetime_complaint_count(db, faculty_id=faculty_id)
+
     stats_df = compute_statistics(df)
     if stats_df.empty:
-        return {"df": df, "stats_df": stats_df, "insights": {}, "alerts": []}
+        return {
+            "df": df, "stats_df": stats_df, "insights": {}, "alerts": [],
+            "window_days": ANALYSIS_WINDOW_DAYS,
+            "data_truncated": data_truncated,
+            "lifetime_total": lifetime_total,
+        }
 
     keywords_by_category = {}
     for _, row in stats_df.iterrows():
@@ -224,6 +258,9 @@ def _build_dss_context(db: Session, faculty_id: Optional[int]):
         "stats_df": stats_df,
         "insights": insights,
         "alerts": alerts,
+        "window_days": ANALYSIS_WINDOW_DAYS,
+        "data_truncated": data_truncated,
+        "lifetime_total": lifetime_total,
     }
 
 
@@ -235,28 +272,42 @@ def _build_dss_context(db: Session, faculty_id: Optional[int]):
 def get_dashboard_metrics(
     db: Session = Depends(get_db),
     authorization: Optional[str] = Header(default=None),
+    refresh: bool = Query(default=False, description="Bypass the cache and recompute now."),
 ):
     """Overall DSS dashboard metrics for management visualization.
-    Scoped to the requesting manager's faculty."""
+    Scoped to the requesting manager's faculty.
+
+    Pass ?refresh=true to force a fresh recompute instead of waiting out
+    the ANALYTICS_CACHE_TTL_SECONDS window -- without this, a manager
+    clicking a "Refresh" button in the UI would silently keep getting the
+    same cached numbers until the cache naturally expired, with no way to
+    actually force a current read.
+    """
     current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
-    ctx = _load_dss_context(db, faculty_id)
+    ctx = _load_dss_context(db, faculty_id, force_refresh=refresh)
     if ctx is None:
         raise HTTPException(status_code=404, detail="No complaint data available")
 
-    return build_dashboard_metrics(ctx["df"], ctx["stats_df"], ctx["insights"])
+    metrics = build_dashboard_metrics(ctx["df"], ctx["stats_df"], ctx["insights"])
+    metrics["analysis_window_days"] = ctx.get("window_days", ANALYSIS_WINDOW_DAYS)
+    metrics["total_complaints_lifetime"] = ctx.get("lifetime_total")
+    metrics["data_truncated"] = ctx.get("data_truncated", False)
+    metrics["fetch_limit"] = COMPLAINT_FETCH_LIMIT
+    return metrics
 
 
 @router.get("/risk-ranking", response_model=list[RiskRankingItem])
 def get_category_risk_ranking(
     db: Session = Depends(get_db),
     authorization: Optional[str] = Header(default=None),
+    refresh: bool = Query(default=False, description="Bypass the cache and recompute now."),
 ):
     """Category risk ranking sorted by operational risk score.
     Scoped to the requesting manager's faculty."""
     current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
-    ctx = _load_dss_context(db, faculty_id)
+    ctx = _load_dss_context(db, faculty_id, force_refresh=refresh)
     if ctx is None:
         raise HTTPException(status_code=404, detail="No complaint data available")
 
@@ -267,12 +318,13 @@ def get_category_risk_ranking(
 def get_executive_summary(
     db: Session = Depends(get_db),
     authorization: Optional[str] = Header(default=None),
+    refresh: bool = Query(default=False, description="Bypass the cache and recompute now."),
 ):
     """Data-driven executive summary for management review.
     Scoped to the requesting manager's faculty."""
     current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
-    ctx = _load_dss_context(db, faculty_id)
+    ctx = _load_dss_context(db, faculty_id, force_refresh=refresh)
     if ctx is None:
         raise HTTPException(status_code=404, detail="No complaint data available")
 
@@ -285,12 +337,13 @@ def get_executive_summary(
 def get_smart_alerts(
     db: Session = Depends(get_db),
     authorization: Optional[str] = Header(default=None),
+    refresh: bool = Query(default=False, description="Bypass the cache and recompute now."),
 ):
     """Threshold-based smart alerts for proactive management.
     Scoped to the requesting manager's faculty."""
     current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
-    ctx = _load_dss_context(db, faculty_id)
+    ctx = _load_dss_context(db, faculty_id, force_refresh=refresh)
     if ctx is None:
         raise HTTPException(status_code=404, detail="No complaint data available")
 
@@ -302,6 +355,7 @@ def get_category_insight(
     category_id: int,
     db: Session = Depends(get_db),
     authorization: Optional[str] = Header(default=None),
+    refresh: bool = Query(default=False, description="Bypass the cache and recompute now."),
 ):
     """Detailed DSS insight for a single complaint category.
     Scoped to the requesting manager's faculty -- a category belonging to
@@ -309,7 +363,7 @@ def get_category_insight(
     and correctly 404s below, without revealing that it exists elsewhere."""
     current_user = authenticate_recommendation_user(db=db, authorization=authorization)
     faculty_id = get_user_faculty_id(db, current_user.id)
-    ctx = _load_dss_context(db, faculty_id)
+    ctx = _load_dss_context(db, faculty_id, force_refresh=refresh)
     if ctx is None:
         raise HTTPException(status_code=404, detail="No complaint data available")
 

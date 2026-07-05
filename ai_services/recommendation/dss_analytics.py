@@ -2228,6 +2228,7 @@ def build_category_risk_ranking(category_insights: dict[int, dict]) -> list[dict
         rca = insight["root_cause_analysis"]
         dp = insight.get("decision_priority", {})
         resolution_q = insight.get("resolution_quality", {})
+        trend = insight.get("trend", {})
         ranking.append({
             # Legacy fields
             "category_id": cat_id,
@@ -2249,6 +2250,10 @@ def build_category_risk_ranking(category_insights: dict[int, dict]) -> list[dict
             "sla_hours": resolution_q.get("sla_hours"),
             "sla_status": resolution_q.get("sla_status"),
             "sla_source": resolution_q.get("sla_source"),
+            "trend": trend.get("trend"),
+            "trend_change_pct": trend.get("change_percentage"),
+            "quality_score": resolution_q.get("quality_score"),
+            "quality_level": resolution_q.get("quality_level"),
         })
 
     ranking.sort(key=lambda x: x["risk_score"], reverse=True)
