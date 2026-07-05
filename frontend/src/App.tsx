@@ -22,7 +22,6 @@ import AdminCategories from "./pages/admin/AdminCategories";
 
 import { useThemeStore } from "./store/themeStore";
 import AnalyticsPage from "./pages/manager/Analytics";
-import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import InsightsPage from "./pages/admin/InsightsPage";
 import PriorityRulesPage from "./pages/admin/PriorityRulesPage";
 import RegulationsPage from "./pages/admin/RegulationsPage";
@@ -42,6 +41,7 @@ import ChangePasswordPage from "./pages/auth/ChangePasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
+  import { ToastContainer } from 'react-toastify';
 
 function App() {
   const { isDarkMode } = useThemeStore();
@@ -55,7 +55,9 @@ function App() {
   }, [isDarkMode]);
 
   return (
-    <Router>
+    <>
+        <ToastContainer/>
+   <Router>
       <Routes>
         {/* <Route path="/login" element={<AuthPages />} /> */}
 
@@ -105,7 +107,6 @@ function App() {
               <Route path="/admin/users/import" element={<UsersImportPage />} />
               <Route path="/admin/regulations" element={<RegulationsPage />} />
               <Route path="/admin/priority-rules" element={<PriorityRulesPage />} />
-              <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
               <Route path="/admin/insights" element={<InsightsPage />} />
               <Route path="/admin/uncategorized" element={<UncategorizedComplaintsPage />} />
               <Route path="/admin/offensive-messages" element={<OffensiveMessagesPage />} />
@@ -125,6 +126,9 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
+    </>
+ 
+
   );
 }
 

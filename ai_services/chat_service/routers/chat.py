@@ -20,18 +20,17 @@ from services.groq_client import (
 )
 from services.similarity_service import find_similar_open_complaint, suggest_solutions
 from services.regulation_service import get_relevant_regulations
+from services.classification_service import classify_complaint
 
 logger = logging.getLogger("chat_service")
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# English offensive words handled by better_profanity built-in list
 profanity.load_censor_words()
 
-# Arabic offensive words checked separately since better_profanity does not handle Arabic reliably
 _ARABIC_OFFENSIVE = {
-    "غبي", "حمار", "كلب", "وسخ", "زبالة", "متخلف",
-    "بهيم", "تيس", "عرص", "منيوك", "احا", "زفت",
-    "كس", "نيك", "شرموط", "عيل",
+    "غبي","حمار","كلب","وسخ","زبالة","متخلف",
+    "بهيم","تيس","عرص","منيوك","احا","زفت",
+    "كس","نيك","شرموط","عيل",
 }
 
 MAX_MESSAGES  = 20
@@ -43,7 +42,6 @@ BLOCKED_EN = "This conversation has been closed due to offensive language. The a
 BLOCKED_AR = "تم إغلاق هذه المحادثة بسبب استخدام ألفاظ مسيئة. تم إبلاغ الإدارة."
 WARN_1_EN  = "Please keep this conversation respectful. This has been logged. One more offensive message will close this conversation."
 WARN_1_AR  = "يرجى الحفاظ على لغة محترمة. تم تسجيل هذه الرسالة. رسالة مسيئة أخرى ستغلق هذه المحادثة."
-
 SUBMITTED_EN = "Your complaint has been submitted successfully. You can track it from your complaints page."
 SUBMITTED_AR = "تم تقديم شكواك بنجاح. يمكنك متابعتها من صفحة الشكاوى."
 
@@ -54,12 +52,9 @@ DECLINE_AR = {"لا","مش","لسه","ابعت","قدم","سجل","لأ"}
 
 
 def _is_offensive(message: str) -> bool:
-    # Check English using better_profanity
     if profanity.contains_profanity(message):
         return True
-    # Check Arabic by splitting on spaces and checking each word against the set
-    words = message.strip().split()
-    return any(w in _ARABIC_OFFENSIVE for w in words)
+    return any(w in _ARABIC_OFFENSIVE for w in message.strip().split())
 
 
 def _build_problem_text(summary: str, details: dict) -> str:
@@ -107,8 +102,12 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     if msg_count >= MAX_MESSAGES:
         await close_session(db, body.session_id, status="abandoned")
         lang = session["language"]
-        return MessageResponse(reply=LIMIT_AR if lang == "ar" else LIMIT_EN, complaint_ready=False, collected_data=None)
+        return MessageResponse(
+            reply=LIMIT_AR if lang == "ar" else LIMIT_EN,
+            complaint_ready=False, collected_data=None
+        )
 
+    # ── Fetch history BEFORE saving anything this turn ──────────────────
     history = await get_history(db, body.session_id)
     state   = session["state"]
 
@@ -118,7 +117,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     else:
         language = session["language"]
 
-    # Offensive check runs before anything else — no API call wasted on offensive messages
+    # ── Offensive check ──────────────────────────────────────────────────
     if _is_offensive(body.message):
         warnings_so_far = await _get_offensive_count(db, body.session_id)
         new_count       = warnings_so_far + 1
@@ -127,8 +126,6 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         await log_offensive_incident(db, body.user_id, body.session_id, body.message, new_count)
         state["offensive_count"] = new_count
         await update_collected_state(db, body.session_id, state)
-
-        logger.warning(f"Offensive message #{new_count} — user {body.user_id} session {body.session_id}")
 
         if new_count >= MAX_OFFENSIVE:
             blocked = BLOCKED_AR if language == "ar" else BLOCKED_EN
@@ -140,26 +137,51 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         await save_message(db, body.session_id, "assistant", warning)
         return MessageResponse(reply=warning, complaint_ready=False, complaint_id=None, collected_data=state)
 
-    # Handle suggestion accept/decline before building the prompt
+    # ── Suggestion accept/decline ────────────────────────────────────────
     if state.get("suggestion_offered"):
         if _is_acceptance(body.message, language):
             await save_message(db, body.session_id, "user", body.message)
-            closing = "Glad that helped! Let us know if you need anything else." if language == "en" else "يسعدني أن هذا حل المشكلة! تواصل معنا إذا احتجت أي شيء آخر."
+            closing = ("Glad that helped! Let us know if you need anything else."
+                       if language == "en" else
+                       "يسعدني أن هذا حل المشكلة! تواصل معنا إذا احتجت أي شيء آخر.")
             await save_message(db, body.session_id, "assistant", closing)
             await close_session(db, body.session_id)
             return MessageResponse(reply=closing, complaint_ready=False, complaint_id=None, collected_data=None)
         else:
             state["suggestion_offered"] = False
 
-    categories  = await get_categories_with_keywords(db)
+    # ── Faculty ID first — everything scoped to this faculty ─────────────
+    # Must be fetched before categories, regulations, and duplicate checks
+    faculty_id = await get_student_faculty_id(db, body.user_id)
+
+    # ── Categories filtered to student's faculty only ────────────────────
+    categories  = await get_categories_with_keywords(db, faculty_id)
     search_text = f"{state.get('problem_summary') or ''} {body.message}".strip()
+
+    # ── Hybrid classifier (English only, Arabic deferred to LLM) ────────
+    if not state.get("category_id"):
+        try:
+            classification = await classify_complaint(body.message, categories)
+            if classification:
+                state["category_id"]   = classification["category_id"]
+                state["category_name"] = classification["category_name"]
+                logger.info(
+                    f"Category pre-assigned via {classification['method']}: "
+                    f"{classification['category_name']}"
+                )
+        except Exception as e:
+            logger.warning(f"Classification failed, LLM will decide: {e}")
+
     guessed_cat = state.get("category_id") or next(
-        (c["id"] for c in categories if any(k.lower() in body.message.lower() for k in c["keywords"])),
+        (c["id"] for c in categories
+         if any(k.lower() in body.message.lower() for k in c["keywords"])),
         None,
     )
+
+    # ── Solution suggestions — same category, any student ────────────────
     suggestions = await suggest_solutions(guessed_cat, search_text) if guessed_cat else []
 
-    faculty_id  = await get_student_faculty_id(db, body.user_id)
+    # ── Regulation retrieval — scoped to this faculty ────────────────────
     regulations = []
     if faculty_id:
         try:
@@ -167,18 +189,21 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         except Exception as e:
             logger.warning(f"Regulation retrieval failed: {e}")
 
-    student_info = await get_student_info(db, body.user_id)
-    force_close  = state.get("questions_asked", 0) >= 3
+    student_info  = await get_student_info(db, body.user_id)
+    force_close   = state.get("questions_asked", 0) >= 3
 
     system_prompt = build_system_prompt(
         categories, language, suggestions, state, regulations, student_info,
         force_close=force_close,
     )
 
-    await save_message(db, body.session_id, "user", body.message)
+    # ── Call LLM with clean history, save user message after ─────────────
     result = chat_with_groq(system_prompt, history, body.message, language)
     reply  = result.get("reply", "")
 
+    await save_message(db, body.session_id, "user", body.message)
+
+    # ── Merge LLM state updates ──────────────────────────────────────────
     if not state.get("category_id") and result.get("category_id"):
         state["category_id"]   = result["category_id"]
         state["category_name"] = result["category_name"]
@@ -204,8 +229,11 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     if not ready:
         return MessageResponse(reply=reply, complaint_ready=False, collected_data=state)
 
+    # ── Duplicate check — same student, same category, still open ────────
     problem_text = _build_problem_text(state["problem_summary"], state["details"])
-    similar = await find_similar_open_complaint(db, body.user_id, state["category_id"], problem_text)
+    similar = await find_similar_open_complaint(
+        db, body.user_id, state["category_id"], problem_text
+    )
 
     if similar:
         await close_session(db, body.session_id)
@@ -219,6 +247,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
                    "لديك بالفعل شكوى مشابهة قيد المعالجة. لا داعي لتقديم شكوى جديدة.")
         return MessageResponse(reply=msg, complaint_ready=False, complaint_id=similar["complaint_id"], collected_data=None)
 
+    # ── Submit complaint ─────────────────────────────────────────────────
     priority   = assign_priority(state["category_name"], state["problem_summary"], state["details"], language)
     officer_id = await get_assigned_officer(db, state["category_id"])
     sla_hours  = await get_sla_hours(db, state["category_id"])
@@ -246,8 +275,10 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     await close_session(db, body.session_id)
     logger.info(f"Complaint {complaint_id} submitted — user {body.user_id}")
 
-    # Use a hardcoded submission confirmation in the correct language
-    # so the student always receives a clear message regardless of what the LLM said
     submission_reply = SUBMITTED_AR if language == "ar" else SUBMITTED_EN
-
-    return MessageResponse(reply=submission_reply, complaint_ready=True, complaint_id=complaint_id, collected_data=state)
+    return MessageResponse(
+        reply=submission_reply,
+        complaint_ready=True,
+        complaint_id=complaint_id,
+        collected_data=state
+    )

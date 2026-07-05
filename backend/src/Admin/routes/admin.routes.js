@@ -64,14 +64,18 @@ adminRoutes.patch(
 adminRoutes.get("/categories", adminController.getCategories);
 adminRoutes.post("/categories", adminController.addCategory);
 adminRoutes.patch("/categories/:id", adminController.patchCategory);
-adminRoutes.delete("/categories/:id", adminController.deleteCategory);
+// مثال للرابط: DELETE /api/categories/5
+adminRoutes.delete("/categories/:id", adminController.deleteCategoryController);
+
+// ==================== ROUTE: DELETE USER ====================
+// مثال للرابط: DELETE /api/users/12
+adminRoutes.delete("/users/:id",  adminController.deleteUserController);
 
 // =========================================================
 // USERS (general management)
 // =========================================================
 adminRoutes.get("/users", adminController.getUsers);
 adminRoutes.patch("/users/:id", adminController.patchUser);
-adminRoutes.delete("/users/:id", adminController.deleteUser);
 
 // =========================================================
 // REGULATIONS
@@ -103,9 +107,14 @@ adminRoutes.get("/offensive-messages", adminController.getOffensiveMessages);
 
 
 
-adminRoutes.get('/uncategorized-complaints', adminController.getUncategorizedComplaintsController);
-adminRoutes.patch('/complaints/:id/reassign', adminController.reassignComplaintController);
 
+
+
+
+
+adminRoutes.get("/uncategorized-complaints", adminController.getUncategorizedComplaintsController);
+adminRoutes.patch("/complaints/:id/reassign", adminController.reassignComplaintController);
+adminRoutes.post("/complaints/:id/create-category", adminController.createCategoryAndReassignController);
 module.exports = adminRoutes;
 
 

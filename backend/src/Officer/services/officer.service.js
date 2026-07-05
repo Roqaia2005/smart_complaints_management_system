@@ -8,6 +8,7 @@ const {
     Student,
     ComplaintHistory,
     CategoryOfficer,
+    PriorityRules,
     sequelize
 } = db;
 
@@ -413,4 +414,49 @@ exports.escalateComplaintService = async (complaintId, targetOfficerId, currentO
     await t.rollback();
     throw error;
   }
+};
+
+
+exports.getOfficerCategoriesWithPriorityService = async (officerId, facultyId) => {
+  const categories = await Category.findAll({
+    where: { 
+      faculty_id: Number(facultyId) // عزل على مستوى الكلية
+    },
+    // تحديد الحقول المطلوبة فقط من جدول الكاتيجوري
+    attributes: ["id", "faculty_id", "name", "description", "sla_hours", "is_active", "is_other"],
+    include: [
+      {
+        model: PriorityRules,
+        attributes: ["priority_level"],
+        required: false
+      },
+      {
+        model: User,
+        as: "officers", // الـ Alias المعرف في الموديل عندك
+        where: { id: officerId }, // الـ Data Isolation: الأقسام المربوطة بالموظف ده بس
+        attributes: [], 
+        through: { attributes: [] } 
+      }
+    ],
+    order: [
+      [PriorityRules, "priority_level", "ASC"], 
+      ["name", "ASC"]
+    ]
+  });
+
+  // تنظيف الـ Response وتحويل الـ PriorityRules لحقل مباشر ونضيف
+  return categories.map(cat => {
+    const categoryJson = cat.toJSON();
+    // أخذ أول عنصر من المصفوفة لو موجود
+    const priorityRule = categoryJson.PriorityRules && categoryJson.PriorityRules[0];
+    
+    // دمج الـ priority_level وحذف المصفوفة الزائدة
+    categoryJson.priority_level = priorityRule ? priorityRule.priority_level : null;
+    delete categoryJson.PriorityRules;
+    
+    // حذف الـ officers array اللي بتطلع تلقائياً بسبب الـ include
+    delete categoryJson.officers; 
+    
+    return categoryJson;
+  });
 };

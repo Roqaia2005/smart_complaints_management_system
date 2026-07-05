@@ -1,6 +1,6 @@
 import { apiClient } from './adminApi';
 import backendApi from './backendApi';
-
+const PYTHON_SERVICE_URL = (import.meta as any).env.VITE_CHAT_API_URL || 'http://localhost:8000';
 // ── Student / Complaints ──────────────────────────────────────────────────
 export const studentApi = {
   submitComplaint: (data: {
@@ -173,6 +173,8 @@ export const adminApi = {
     return apiClient.post('/admin/users/import/preview', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+
+    
   },
 
   // Step 2: confirm with the import_id returned from preview
@@ -216,6 +218,13 @@ export const adminApi = {
     from?: string;   // ISO date string
     to?: string;     // ISO date string
   }) => apiClient.get('/admin/audit-logs', { params: filters }),
+
+
+  suggestCategoryDescription: (name: string, existing_description: string) =>
+  apiClient.post(`${PYTHON_SERVICE_URL}/api/admin/categories/suggest-description`, {
+    name,
+    existing_description,
+  }),
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────

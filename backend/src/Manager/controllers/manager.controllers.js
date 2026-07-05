@@ -7,7 +7,8 @@ const {
     getRecommendationsService,
     updateRecommendationStatusService,
     reportsService,
-    topIssuesService
+    topIssuesService,
+    getManagerCategoriesWithPriorityService
 } = require('../services/manager.service');
 
 // =========================================================
@@ -83,13 +84,21 @@ exports.departmentPerformanceController = async (req, res) => {
 exports.heatmapController = async (req, res) => {
     try {
         const managerId = req.user.id; // حماية لضمان عزل خريطة الكلية
-        const { dimension } = req.query;
+        const { dimension, categoryIds } = req.query;
 
         if (!dimension) {
             throw new Error('Dimension parameter is required (category, location, time, or department).');
         }
 
-        const data = await heatmapService(managerId, dimension);
+        // categoryIds ممكن تيجي كـ "1,2,3" أو كـ array (categoryIds=1&categoryIds=2)
+        let filterCategoryIds;
+        if (categoryIds) {
+            filterCategoryIds = Array.isArray(categoryIds)
+                ? categoryIds
+                : categoryIds.split(',').map(id => id.trim()).filter(Boolean);
+        }
+
+        const data = await heatmapService(managerId, dimension, filterCategoryIds);
         return res.status(200).json({
             success: true,
             ...data
@@ -123,4 +132,29 @@ exports.topIssuesController = async (req, res) => {
             error: error.message
         });
     }
+};
+
+exports.getManagerCategoriesController = async (req, res) => {
+  try {
+    // جلب كلية المانجر من الـ Auth Middleware لمنع أي مانجر من رؤية كليات أخرى
+    const facultyId = req.user?.faculty_id || req.user?.facultyId;
+
+    if (!facultyId) {
+      return res.status(403).json({ 
+        success: false, 
+        error: "Access denied. Manager faculty info not found." 
+      });
+    }
+
+    const categories = await getManagerCategoriesWithPriorityService(facultyId);
+
+    return res.status(200).json({
+      success: true,
+      count: categories.length,
+      data: categories
+    });
+
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
 };

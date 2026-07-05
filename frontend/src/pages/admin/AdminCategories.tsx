@@ -6,33 +6,116 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { Input } from '../../components/ui/input';
 import {
   Plus, Search, Trash2, Edit, Tag, AlertCircle,
-  CheckCircle2, XCircle
+  CheckCircle2, XCircle, Sparkles, Loader2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { adminApi } from '../../api/services';
 import type { Category } from '../../types/api';
 
+// Shape returned by POST /api/admin/categories/suggest-description
+interface CategorySuggestion {
+  description_en: string;
+  description_ar: string;
+  keywords_en: string[];
+  keywords_ar: string[];
+  combined_description: string;
+  combined_keywords: string;
+}
+
+// Matches the backend's `description` column limit. Adjust this to match
+// whatever your Category model actually allows.
+const MAX_DESCRIPTION_LENGTH = 1000;
+
+function clampDescription(text: string): { value: string; wasTrimmed: boolean } {
+  const trimmed = text.trim();
+  if (trimmed.length <= MAX_DESCRIPTION_LENGTH) return { value: trimmed, wasTrimmed: false };
+  return { value: trimmed.slice(0, MAX_DESCRIPTION_LENGTH).trim(), wasTrimmed: true };
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────
 interface CategoryModalProps {
   initial?: Partial<Category>;
   onClose: () => void;
-  onSave: (data: { name: string; description: string; sla_hours: number }) => Promise<void>;
+  onSave: (data: { name: string; description: string; sla_hours: number; keywords?: string }) => Promise<void>;
 }
 
 function CategoryModal({ initial, onClose, onSave }: CategoryModalProps) {
   const [name, setName]           = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [slaHours, setSlaHours]   = useState(String(initial?.sla_hours ?? 24));
+  const [keywords, setKeywords]   = useState((initial as any)?.keywords ?? '');
   const [saving, setSaving]       = useState(false);
   const [err, setErr]             = useState('');
+
+  // AI description suggestion (POST /api/admin/categories/suggest-description)
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
+  const [suggestErr, setSuggestErr] = useState('');
+
+  const handleSuggest = async () => {
+    if (!name.trim()) { setSuggestErr('Enter a category name first'); return; }
+    setSuggesting(true);
+    setSuggestErr('');
+    try {
+      const res = await adminApi.suggestCategoryDescription(name.trim(), description.trim());
+      if (res.data?.success) {
+        setSuggestion(res.data.suggestion);
+      } else {
+        setSuggestErr(res.data?.error || 'Could not generate a suggestion.');
+      }
+    } catch (error: any) {
+      setSuggestErr(error.response?.data?.error ?? error.message ?? 'Suggestion failed.');
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const applySuggestion = (variant: 'en' | 'ar' | 'combined') => {
+    if (!suggestion) return;
+    const source =
+      variant === 'en' ? suggestion.description_en :
+      variant === 'ar' ? suggestion.description_ar :
+      suggestion.combined_description;
+
+    const { value, wasTrimmed } = clampDescription(source);
+    setDescription(value);
+    setSuggestErr(
+      wasTrimmed
+        ? `The suggested description was trimmed to fit the ${MAX_DESCRIPTION_LENGTH}-character limit. Feel free to edit it further.`
+        : ''
+    );
+  };
+
+  const applyKeywords = () => {
+    if (!suggestion) return;
+    const existing = keywords
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean);
+    const incoming = suggestion.combined_keywords
+      .split(',')
+      .map(k => k.trim())
+      .filter(Boolean);
+    const merged = Array.from(new Set([...existing, ...incoming]));
+    setKeywords(merged.join(', '));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setErr('Name is required'); return; }
     if (!description.trim()) { setErr('Description is required'); return; }
+    if (description.trim().length > MAX_DESCRIPTION_LENGTH) {
+      setErr(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer (currently ${description.trim().length}).`);
+      return;
+    }
     setSaving(true);
     try {
-      await onSave({ name: name.trim(), description: description.trim(), sla_hours: Number(slaHours) });
+      await onSave({
+        name: name.trim(),
+        description: description.trim(),
+        sla_hours: Number(slaHours),
+        keywords: keywords.trim() || undefined,
+      });
       onClose();
     } catch (error: any) {
       setErr(error.response?.data?.error ?? error.message);
@@ -42,13 +125,13 @@ function CategoryModal({ initial, onClose, onSave }: CategoryModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-2xl">
-        <div className="p-6 border-b dark:border-slate-800">
+    <div className="fixed inset-0 bg-transparent backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg shadow-2xl flex flex-col overflow-hidden">
+        <div className="p-6 border-b dark:border-slate-800 shrink-0">
           <h2 className="text-xl font-bold">{initial?.id ? 'Edit Category' : 'Add Category'}</h2>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
             {err && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
                 <AlertCircle size={16} /> {err}
@@ -58,16 +141,95 @@ function CategoryModal({ initial, onClose, onSave }: CategoryModalProps) {
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Name *</label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Technical / IT" />
             </div>
+
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</label>
-              <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description..." />
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description *</label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={handleSuggest}
+                  disabled={suggesting || !name.trim()}
+                >
+                  {suggesting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {suggesting ? 'Thinking…' : 'Suggest with AI'}
+                </Button>
+              </div>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Brief description..."
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                rows={3}
+                className="w-full rounded-md border border-slate-200 dark:border-slate-700 dark:bg-slate-900 px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className={cn(
+                "text-[10px] font-medium text-right",
+                description.length >= MAX_DESCRIPTION_LENGTH ? "text-rose-600" : "text-slate-400"
+              )}>
+                {description.length}/{MAX_DESCRIPTION_LENGTH}
+              </div>
+
+              {suggestErr && (
+                <p className="text-xs text-rose-600 font-medium pt-1">{suggestErr}</p>
+              )}
+
+              {suggestion && (
+                <div className="mt-2 p-3 rounded-lg bg-blue-50 border border-blue-200 space-y-3">
+                  <div className="flex items-center gap-1.5 text-blue-700 text-xs font-bold uppercase tracking-widest">
+                    <Sparkles size={12} /> AI Suggestion
+                  </div>
+
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><span className="font-bold">EN:</span> {suggestion.description_en}</p>
+                    <p dir="rtl" className="text-right"><span className="font-bold">AR:</span> {suggestion.description_ar}</p>
+                  </div>
+
+                  {(suggestion.keywords_en.length > 0 || suggestion.keywords_ar.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...suggestion.keywords_en, ...suggestion.keywords_ar].map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full bg-white border border-blue-200 text-[11px] text-slate-600">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => applySuggestion('en')}>
+                      Use English
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => applySuggestion('ar')}>
+                      Use Arabic
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => applySuggestion('combined')}>
+                      Use Both
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={applyKeywords}>
+                      Add Keywords
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keywords</label>
+              <Input
+                value={keywords}
+                onChange={e => setKeywords(e.target.value)}
+                placeholder="Comma-separated, e.g. wifi, login, password"
+              />
+            </div>
+
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SLA Hours</label>
               <Input type="number" value={slaHours} onChange={e => setSlaHours(e.target.value)} min={1} />
             </div>
           </div>
-          <div className="p-6 border-t dark:border-slate-800 flex gap-3 justify-end">
+          <div className="p-6 border-t dark:border-slate-800 flex gap-3 justify-end shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 font-bold px-8">
               {saving ? 'Saving…' : 'Save Category'}
@@ -105,13 +267,13 @@ export default function AdminCategories() {
 
   useEffect(() => { load(); }, []);
 
-  const handleAdd = async (data: { name: string; description: string; sla_hours: number }) => {
+  const handleAdd = async (data: { name: string; description: string; sla_hours: number; keywords?: string }) => {
     await adminApi.addCategory(data);
     showToast('Category added successfully!');
     load();
   };
 
-  const handleEdit = (cat: Category) => async (data: { name: string; description: string; sla_hours: number }) => {
+  const handleEdit = (cat: Category) => async (data: { name: string; description: string; sla_hours: number; keywords?: string }) => {
     await adminApi.updateCategory(cat.id, data);
     showToast('Category updated!');
     load();
