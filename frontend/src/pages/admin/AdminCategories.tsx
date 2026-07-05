@@ -125,8 +125,8 @@ function CategoryModal({ initial, onClose, onSave }: CategoryModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg max-h-[90vh] shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b dark:border-slate-800 shrink-0">
           <h2 className="text-xl font-bold">{initial?.id ? 'Edit Category' : 'Add Category'}</h2>
         </div>

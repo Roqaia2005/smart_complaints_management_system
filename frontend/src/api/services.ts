@@ -65,20 +65,28 @@ export const officerApi = {
 export const managerApi = {
   getOverview: (category_id?: number | string) =>
     apiClient.get('/manager/dashboard', { params: category_id ? { category_id } : {} }),
-
   getDepartmentPerformance: () =>
     apiClient.get('/manager/department-performance'),
 
-  getHeatmap: (dimension: 'category' | 'location' | 'time' | 'department') =>
-    apiClient.get('/manager/heatmap', { params: { dimension } }),
+  // UPDATED — now accepts an optional category filter
+  getHeatmap: (
+    dimension: 'category' | 'location' | 'time' | 'department',
+    categoryId?: number | string | null,
+  ) =>
+    apiClient.get('/manager/heatmap', {
+      params: {
+        dimension,
+        ...(categoryId ? { categoryIds: String(categoryId) } : {}),
+      },
+    }),
 
   getReports: (filters?: { from?: string; to?: string; category_id?: number | string; status?: string }) =>
     apiClient.get('/manager/reports', { params: filters }),
-
-  getTopIssues: (category_id?: number | string|null) =>
-  apiClient.get('/manager/top-issue', { params: category_id ? { category_id } : {} }),
+  getTopIssues: (category_id?: number | string | null) =>
+    apiClient.get('/manager/top-issue', { params: category_id ? { category_id } : {} }),
+  getCategories: () =>
+    apiClient.get('/manager/categories/by-priority'),
 };
-
 // ── Admin ─────────────────────────────────────────────────────────────────
 
 // Shared role-specific payload shapes for createUser
@@ -232,9 +240,13 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     backendApi.post('/auth/login', data),
 
-  // Changed data type to FormData to support file uploads
-  registerAdmin: (data: FormData) => 
-    backendApi.post('/auth/admin/register', data),
+  // Send file uploads as multipart/form-data so multer on the backend can read the file
+  registerAdmin: (data: FormData) =>
+    backendApi.post('/auth/admin/register', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
 
   forgotPassword: (data: { email: string }) =>
     backendApi.post('/auth/forgot-password', data),

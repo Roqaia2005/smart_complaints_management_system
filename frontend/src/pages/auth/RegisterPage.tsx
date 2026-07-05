@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '@/api/services';
 import {
   AuthCard, ErrorAlert, PasswordInput, PrimaryButton,
-  StepIndicator, MailIcon, CheckSmallIcon,
+  StepIndicator, MailIcon,
 } from './auth.shared';
 
 export default function RegisterPage() {
@@ -71,11 +71,15 @@ export default function RegisterPage() {
     formData.append('supporting_document', form.supporting_document); // The actual uploaded file file
 
     try {
-      const res=await authApi.registerAdmin(formData);
-      console.log('Registration response:', res);
+      await authApi.registerAdmin(formData);
       setDone(true);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Submission failed. Please try again.');
+      console.error('Registration response:', err?.response?.data || err);
+      setError(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Submission failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

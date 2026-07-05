@@ -14,7 +14,6 @@ import OfficerAppeals from "./pages/officer/OfficerAppeals";
 
 // Manager Pages
 import ManagerOverview from "./pages/manager/ManagerOverview";
-import ManagerHeatmap from "./pages/manager/ManagerHeatmap";
 import ManagerRecommendations from "./pages/manager/ManagerRecommendations";
 
 // Admin Pages
@@ -92,7 +91,6 @@ function App() {
 
             <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
               <Route path="/manager/overview" element={<ManagerOverview />} />
-              <Route path="/manager/heatmap" element={<ManagerHeatmap />} />
               <Route
                 path="/manager/recommendations"
                 element={<ManagerRecommendations />}

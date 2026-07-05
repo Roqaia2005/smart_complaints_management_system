@@ -35,7 +35,8 @@ import {
   Tag,
   Volume2,
 } from "lucide-react";
-import { managerApi, studentApi } from "../../api/services";
+
+import { managerApi} from "../../api/services";
 import { ExecutiveBriefingPanel } from "../../components/briefing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,6 +81,16 @@ interface HeatmapItem {
 interface Category {
   id: number;
   name: string;
+}
+interface Category {
+  id: number;
+  name: string;
+  faculty_id?: number;
+  description?: string | null;
+  sla_hours?: number;
+  is_active?: boolean;
+  is_other?: boolean;
+  priority_level?: number | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -216,17 +227,19 @@ export default function AnalyticsPage() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
-  const fetchCategories = useCallback(async () => {
-    setLoadingCategories(true);
-    try {
-      const res = await studentApi.getCategories();
-      setCategories(res.data.categories ?? []);
-    } catch {
-      /* non-critical */
-    } finally {
-      setLoadingCategories(false);
-    }
-  }, []);
+const fetchCategories = useCallback(async () => {
+  setLoadingCategories(true);
+  try {
+    const res = await managerApi.getCategories();
+    const list: Category[] = res.data?.data ?? [];
+    // keep only active categories in the filter dropdown
+    setCategories(list.filter((c) => c.is_active !== false));
+  } catch {
+    /* non-critical */
+  } finally {
+    setLoadingCategories(false);
+  }
+}, []);
 
   const fetchDashboard = useCallback(async () => {
     setLoadingDashboard(true);
@@ -255,51 +268,53 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  const fetchHeatmapCategory = useCallback(async () => {
-    setLoadingHeatmapCat(true);
-    setErrorHeatmapCat(null);
-    try {
-      const res = await managerApi.getHeatmap("category");
-      // sort descending so the longest bar is on top
-      const sorted = [...(res.data?.heatmap ?? [])].sort(
-        (a, b) => b.count - a.count,
-      );
-      setHeatmapCategory(sorted);
-    } catch {
-      setErrorHeatmapCat("Failed to load category volume.");
-    } finally {
-      setLoadingHeatmapCat(false);
-    }
-  }, []);
+ const fetchHeatmapCategory = useCallback(async () => {
+  setLoadingHeatmapCat(true);
+  setErrorHeatmapCat(null);
+  try {
+    const param = categoryId !== "all" ? categoryId : undefined;
+    const res = await managerApi.getHeatmap("category", param);
+    const sorted = [...(res.data?.heatmap ?? [])].sort(
+      (a, b) => b.count - a.count,
+    );
+    setHeatmapCategory(sorted);
+  } catch {
+    setErrorHeatmapCat("Failed to load category volume.");
+  } finally {
+    setLoadingHeatmapCat(false);
+  }
+}, [categoryId]);
 
-  const fetchHeatmapTime = useCallback(async () => {
-    setLoadingHeatmapTime(true);
-    setErrorHeatmapTime(null);
-    try {
-      const res = await managerApi.getHeatmap("time");
-      setHeatmapTime(res.data?.heatmap ?? []);
-    } catch {
-      setErrorHeatmapTime("Failed to load complaint trend.");
-    } finally {
-      setLoadingHeatmapTime(false);
-    }
-  }, []);
+const fetchHeatmapTime = useCallback(async () => {
+  setLoadingHeatmapTime(true);
+  setErrorHeatmapTime(null);
+  try {
+    const param = categoryId !== "all" ? categoryId : undefined;
+    const res = await managerApi.getHeatmap("time", param);
+    setHeatmapTime(res.data?.heatmap ?? []);
+  } catch {
+    setErrorHeatmapTime("Failed to load complaint trend.");
+  } finally {
+    setLoadingHeatmapTime(false);
+  }
+}, [categoryId]);
 
-  const fetchHeatmapDept = useCallback(async () => {
-    setLoadingHeatmapDept(true);
-    setErrorHeatmapDept(null);
-    try {
-      const res = await managerApi.getHeatmap("department");
-      const sorted = [...(res.data?.heatmap ?? [])].sort(
-        (a, b) => b.count - a.count,
-      );
-      setHeatmapDept(sorted);
-    } catch {
-      setErrorHeatmapDept("Failed to load department load data.");
-    } finally {
-      setLoadingHeatmapDept(false);
-    }
-  }, []);
+const fetchHeatmapDept = useCallback(async () => {
+  setLoadingHeatmapDept(true);
+  setErrorHeatmapDept(null);
+  try {
+    const param = categoryId !== "all" ? categoryId : undefined;
+    const res = await managerApi.getHeatmap("department", param);
+    const sorted = [...(res.data?.heatmap ?? [])].sort(
+      (a, b) => b.count - a.count,
+    );
+    setHeatmapDept(sorted);
+  } catch {
+    setErrorHeatmapDept("Failed to load department load data.");
+  } finally {
+    setLoadingHeatmapDept(false);
+  }
+}, [categoryId]);
 
   const fetchTopIssues = useCallback(async () => {
     setLoadingTopIssues(true);
@@ -316,19 +331,24 @@ export default function AnalyticsPage() {
     }
   }, [categoryId]);
 
-  useEffect(() => {
-    fetchCategories();
-    fetchDepartments();
-    fetchHeatmapCategory();
-    fetchHeatmapTime();
-    fetchHeatmapDept();
-  }, [
-    fetchCategories,
-    fetchDepartments,
-    fetchHeatmapCategory,
-    fetchHeatmapTime,
-    fetchHeatmapDept,
-  ]);
+ useEffect(() => {
+  fetchCategories();
+  fetchDepartments();
+}, [fetchCategories, fetchDepartments]);
+
+useEffect(() => {
+  fetchDashboard();
+  fetchTopIssues();
+  fetchHeatmapCategory();
+  fetchHeatmapTime();
+  fetchHeatmapDept();
+}, [
+  fetchDashboard,
+  fetchTopIssues,
+  fetchHeatmapCategory,
+  fetchHeatmapTime,
+  fetchHeatmapDept,
+]);
 
   useEffect(() => {
     fetchDashboard();
